@@ -20,8 +20,6 @@
         
         .exchange-rate-box { font-size: 0.9rem; font-weight: normal; display: flex; align-items: center; gap: 5px; color: #4a5568; }
         .exchange-rate-box input { padding: 4px 8px; width: 80px; border: 1px solid #cbd5e0; border-radius: 4px; }
-        .btn-mini { padding: 4px 8px; font-size: 12px; background-color: #4a5568; color: white; border: none; border-radius: 4px; cursor: pointer; transition: 0.2s; }
-        .btn-mini:hover { background-color: #2d3748; }
         
         .form-row { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .form-group { flex: 1; display: flex; flex-direction: column; min-width: 120px; }
@@ -97,7 +95,7 @@
 </head>
 <body>
 
-    <h1 class="header-title">📊 個人投資戰情室 (雙引擎閃電版)</h1>
+    <h1 class="header-title">📊 個人投資戰情室 (極致體驗版)</h1>
 
     <div class="container">
         <div class="panel" style="flex: 1.8;">
@@ -106,18 +104,17 @@
                 <div class="exchange-rate-box">
                     USD/TWD 匯率: 
                     <input type="number" id="exchangeRate" value="32.50" step="0.001" onchange="recalculateCurrencies()">
-                    <button class="btn-mini" onclick="fetchExchangeRate()" id="rateBtn" title="手動單抓匯率">⚡</button>
                 </div>
             </h2>
             
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>顯示名稱 (圖表顯示)</label>
-                    <input type="text" id="stockName" placeholder="如: 小型國巨期 / HPQ買權">
+                    <input type="text" id="stockName" placeholder="如: 小型國巨期 / HPQ買權" onkeydown="if(event.key === 'Enter') fetchPrice()">
                 </div>
                 <div class="form-group" style="flex: 1;">
                     <label>API 抓價代號 (系統用)</label>
-                    <input type="text" id="apiTicker" placeholder="選填，留空則同名稱">
+                    <input type="text" id="apiTicker" placeholder="選填，留空則同名稱" onkeydown="if(event.key === 'Enter') fetchPrice()">
                     <div class="hint">期權填專屬碼，股期填現股代號</div>
                 </div>
                 <div class="form-group" style="justify-content: flex-end; flex: 0.5;">
@@ -345,24 +342,6 @@
             updateUI();
         }
 
-        async function fetchExchangeRate() {
-            const rateInput = document.getElementById('exchangeRate');
-            const btn = document.getElementById('rateBtn');
-            rateInput.style.opacity = '0.5';
-            btn.style.opacity = '0.5';
-            try {
-                const response = await fetch(`${GAS_PROXY_URL}?ticker=TWD=X`);
-                const data = await response.json();
-                if (data.chart && !data.chart.error && data.chart.result) {
-                    const currentRate = data.chart.result[0].meta.regularMarketPrice;
-                    rateInput.value = currentRate.toFixed(3);
-                    recalculateCurrencies(); 
-                }
-            } catch (e) { console.error("Error fetching exchange rate", e); }
-            rateInput.style.opacity = '1';
-            btn.style.opacity = '1';
-        }
-
         function recordDailyEquity(totalEquity) {
             let hist = JSON.parse(localStorage.getItem('equityHistoryData'));
             if (!hist || hist.length === 0) {
@@ -511,7 +490,6 @@
             }
         }
 
-        // 🚀 終極升級：Promise.all 多執行緒併發抓取
         async function refreshAllPrices(isAuto = false) {
             const btn = document.getElementById('refreshAllBtn');
             
@@ -521,7 +499,6 @@
             }
             btn.innerText = "⏳ 併發抓取報價中..."; 
 
-            // 1. 建立「抓取匯率」的獨立任務
             const ratePromise = (async () => {
                 try {
                     const rateResponse = await fetch(`${GAS_PROXY_URL}?ticker=TWD=X`);
@@ -534,7 +511,6 @@
                 return true; 
             })();
 
-            // 2. 建立「抓取所有股票」的任務清單 (不跑 for 迴圈，改用 map 產生 Promise 陣列)
             const stockPromises = portfolio.map(async (s) => {
                 let ticker = s.apiTicker || s.name;
                 let tickersToTry = s.market === '台股' && /^\d{4,6}[A-Za-z]?$/.test(ticker) 
@@ -559,13 +535,9 @@
                 return false;
             });
 
-            // 3. 全面齊發：把匯率跟股票全部一起丟出去並列處理！
             const results = await Promise.all([ratePromise, ...stockPromises]);
-
-            // 扣掉陣列裡第一個(匯率)，計算真正更新成功的股票檔數
             const updatedCount = results.slice(1).filter(r => r === true).length;
 
-            // 等所有人全部回來後，統一用最新的匯率重新結算總損益
             const finalRate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
             portfolio.forEach(s => calcStockData(s, finalRate));
 
