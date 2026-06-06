@@ -205,6 +205,7 @@
                         <option value="60">自動更新 (1分鐘)</option>
                     </select>
                     <button class="btn-fetch" id="refreshAllBtn" onclick="refreshAllPrices(false)" style="margin: 0; background-color: #2b6cb0;">🔄 一鍵閃電更新</button>
+		    <span id="lastUpdateText" style="font-size: 13px; color: #718096; font-weight: bold; margin-left: 8px;">最後更新: --:--:--</span>
                 </div>
             </div>
             
@@ -554,7 +555,7 @@
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
                             now.getMinutes().toString().padStart(2, '0') + ':' + 
                             now.getSeconds().toString().padStart(2, '0');
-
+	    document.getElementById('lastUpdateText').innerText = `最後更新: ${timeStr}`;
             if (isAuto) {
                 btn.innerText = `✅ 已閃電更新 (${timeStr})`;
             } else {
