@@ -296,15 +296,18 @@
             <p style="font-size:13px;color:#718096;margin:0 0 10px;">上傳券商庫存截圖，Gemini AI 自動辨識代號、股數、成本，確認後一鍵匯入。支援 iOS 相簿與拍照。</p>
 
             <!-- ★ 鑲嵌 API Key：把你的 Key 填入下方引號內即可 -->
-            <input type="hidden" id="geminiApiKey" value="AQ.Ab8RN6K8bj6x2x5jJgAu_sz2GbWEhf9QchCG9rGXQRVoy7L02Q">
+            <input type="hidden" id="geminiApiKey" value="">
             <!-- 把 Key 貼在 value="" 的引號裡，例如 value="AIzaSyXXXXXXXXXXX" -->
 
 
-            <div class="ocr-drop-zone" id="ocrDropZone">
-                <input type="file" id="ocrFileInput" accept="image/*" onchange="handleOcrImage(this.files[0])">
+            <!-- 隱藏的 file input，由按鈕觸發（iOS Safari 相容） -->
+            <input type="file" id="ocrFileInput" accept="image/*" capture="environment"
+                   style="display:none;" onchange="handleOcrImage(this.files[0])">
+
+            <div class="ocr-drop-zone" id="ocrDropZone" onclick="document.getElementById('ocrFileInput').click()">
                 <span style="font-size:28px;">📷</span>
-                <div style="margin-top:6px;"><strong>點擊選取截圖（iOS 可選相簿或拍照）</strong></div>
-                <div style="font-size:12px;margin-top:4px;">支援 JPG、PNG、WEBP；桌機也可拖曳上傳</div>
+                <div style="margin-top:6px;"><strong>點擊上傳截圖</strong></div>
+                <div style="font-size:12px;margin-top:4px;">iOS 可選相簿或拍照 ／ 桌機可拖曳上傳</div>
             </div>
 
             <!-- AI 解析 Modal -->
@@ -979,6 +982,8 @@
             ocrZone.classList.remove('drag-over');
             if (e.dataTransfer.files[0]) handleOcrImage(e.dataTransfer.files[0]);
         });
+        // 避免 drop zone 的 onclick 在拖曳結束後重複觸發
+        ocrZone.addEventListener('dragenter', e => e.preventDefault());
 
         // ESC / 背景點擊關閉
         document.getElementById('ocrOverlay').addEventListener('click', function(e) {
