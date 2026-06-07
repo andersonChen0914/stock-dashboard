@@ -442,6 +442,10 @@
         }
 
         function initApp() {
+            // 載入儲存的 Gemini API Key
+            const savedKey = localStorage.getItem('geminiApiKey');
+            if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
+
             const savedData = localStorage.getItem('myStockPortfolioData');
             const savedLoan = localStorage.getItem('myPortfolioLoan');
             const savedRefresh = localStorage.getItem('myPortfolioAutoRefresh');
@@ -547,11 +551,6 @@
         }
 
         // 頁面完全載入後再讀取儲存的 Key
-        window.addEventListener('DOMContentLoaded', function() {
-            const saved = localStorage.getItem('geminiApiKey');
-            if (saved) document.getElementById('geminiApiKey').value = saved;
-        });
-
         initApp();
                     alert("✅ 資料還原成功！");
                 } catch(err) { alert("檔案格式錯誤"); }
