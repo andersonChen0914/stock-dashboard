@@ -297,12 +297,15 @@
 
             <div class="ocr-model-row" style="align-items:center; gap:8px; margin-bottom:10px;">
                 <label style="white-space:nowrap; margin:0;">🔑 Gemini API Key</label>
-                <input type="password" id="geminiApiKey" placeholder="貼上 API Key（儲存後永久保留）"
+                <input type="password" id="geminiApiKey" placeholder="貼上 API Key"
                        autocomplete="off" style="flex:1;"
                        oninput="saveGeminiKey(this.value)">
                 <button onclick="toggleKeyVisibility()" id="keyToggleBtn"
                         style="padding:8px 10px; background:#718096; color:white; border:none; border-radius:6px; cursor:pointer; white-space:nowrap; font-size:12px;">👁 顯示</button>
             </div>
+            <!-- ★★★ 把你的 API Key 貼在這裡，永久固定不會消失 ★★★ -->
+            <script>const _FIXED_KEY = 'AQ.Ab8RN6KEVfkCv6pebFQByaSFMMuNLProUTTO11gfnCyZEKmW-Q';</script>
+            <!-- 例如: const _FIXED_KEY = 'AQ.Ab8RN6K...你的完整Key'; -->
 
 
             <!-- 隱藏的 file input，由按鈕觸發（iOS Safari 相容） -->
@@ -442,9 +445,11 @@
         }
 
         function initApp() {
-            // 載入儲存的 Gemini API Key
+            // 優先用寫死的 Key，其次用 localStorage
+            const fixedKey = (typeof _FIXED_KEY !== 'undefined' && _FIXED_KEY) ? _FIXED_KEY : null;
             const savedKey = localStorage.getItem('geminiApiKey');
-            if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
+            const keyToUse = fixedKey || savedKey || '';
+            if (keyToUse) document.getElementById('geminiApiKey').value = keyToUse;
 
             const savedData = localStorage.getItem('myStockPortfolioData');
             const savedLoan = localStorage.getItem('myPortfolioLoan');
