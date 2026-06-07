@@ -302,7 +302,7 @@
 
 
             <!-- 隱藏的 file input，由按鈕觸發（iOS Safari 相容） -->
-            <input type="file" id="ocrFileInput" accept="image/*" capture="environment"
+            <input type="file" id="ocrFileInput" accept="image/*"
                    style="display:none;" onchange="handleOcrImage(this.files[0])">
 
             <div class="ocr-drop-zone" id="ocrDropZone" onclick="document.getElementById('ocrFileInput').click()">
@@ -1120,6 +1120,7 @@
                         <thead>
                             <tr><th>✓</th><th>名稱</th><th>代號</th><th>股數</th><th>成本均價</th><th>市場</th></tr>
                         </thead>
+					
                         <tbody>${rows}</tbody>
                     </table>
                 </div>
