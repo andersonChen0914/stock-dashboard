@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -80,39 +79,20 @@
         .sub-charts-container { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; border-top: 1px dashed #e2e8f0; padding-top: 20px; }
         .sub-chart { flex: 1; min-width: 100%; height: 300px; }
 
-        /* ========== 新增：AI 截圖匯入樣式 ========== */
-        .ocr-section-title { margin-top: 25px; border-top: 1px dashed #cbd5e0; padding-top: 15px; }
+        /* ========== AI 截圖匯入樣式 ========== */
         .ocr-drop-zone {
-            border: 2px dashed #cbd5e0;
-            border-radius: 10px;
-            padding: 22px 16px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: #f0fff4;
-            color: #718096;
-            font-size: 14px;
-            position: relative;
-            margin-bottom: 0;
+            border: 2px dashed #cbd5e0; border-radius: 10px;
+            padding: 22px 16px; text-align: center; cursor: pointer;
+            transition: all 0.2s ease; background: #f0fff4;
+            color: #718096; font-size: 14px; margin-bottom: 0;
         }
         .ocr-drop-zone:hover, .ocr-drop-zone.drag-over {
-            border-color: var(--success);
-            background: #c6f6d5;
-            color: var(--success);
+            border-color: var(--success); background: #c6f6d5; color: var(--success);
         }
-        .ocr-model-row {
-            display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap;
-        }
+        .ocr-model-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
         .ocr-model-row label { font-weight: 600; font-size: 13px; color: #4a5568; white-space: nowrap; margin: 0; }
-        .ocr-model-row input {
-            flex: 1; padding: 7px 10px; border: 1px solid #e2e8f0;
-            border-radius: 6px; font-size: 13px; font-family: monospace; min-width: 160px;
-        }
-        .ocr-model-row select {
-            padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px;
-            font-size: 13px; background: white; min-width: 200px;
-        }
-        /* AI Modal */
+        .ocr-model-row input { flex: 1; padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-family: monospace; min-width: 160px; }
+        
         #ocrOverlay {
             display: none; position: fixed; inset: 0; z-index: 9999;
             background: rgba(0,0,0,0.65); justify-content: center; align-items: center;
@@ -121,60 +101,47 @@
         #ocrBox {
             background: white; border-radius: 14px; padding: 26px 28px;
             max-width: 660px; width: 94vw; max-height: 88vh;
-            overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
-            position: relative;
+            overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.35); position: relative;
         }
         #ocrBox h3 { margin: 0 0 4px; color: var(--success); font-size: 1.1rem; }
         #ocrBox .ocr-sub { font-size: 12px; color: #718096; margin-bottom: 14px; }
         #ocrCloseBtn {
-            position: absolute; top: 14px; right: 16px;
-            background: none; border: none; font-size: 22px; color: #a0aec0; cursor: pointer; padding: 0; line-height: 1;
+            position: absolute; top: 14px; right: 16px; background: none; border: none; 
+            font-size: 22px; color: #a0aec0; cursor: pointer; padding: 0; line-height: 1;
         }
         .ocr-preview-img {
-            width: 100%; max-height: 160px; object-fit: contain;
-            border-radius: 8px; margin-bottom: 14px;
+            width: 100%; max-height: 160px; object-fit: contain; border-radius: 8px; margin-bottom: 14px;
             border: 1px solid #e2e8f0; background: #f7fafc; display: block;
         }
-        .ocr-status {
-            text-align: center; padding: 24px 16px; color: var(--success); font-weight: bold; font-size: 14px;
-        }
+        .ocr-status { text-align: center; padding: 24px 16px; color: var(--success); font-weight: bold; font-size: 14px; }
         .ocr-spinner {
-            display: inline-block; width: 20px; height: 20px;
-            border: 3px solid #c6f6d5; border-top-color: var(--success);
-            border-radius: 50%; animation: ocrSpin 0.75s linear infinite;
-            vertical-align: middle; margin-right: 8px;
+            display: inline-block; width: 20px; height: 20px; border: 3px solid #c6f6d5; border-top-color: var(--success);
+            border-radius: 50%; animation: ocrSpin 0.75s linear infinite; vertical-align: middle; margin-right: 8px;
         }
         @keyframes ocrSpin { to { transform: rotate(360deg); } }
-        .ocr-error {
-            color: var(--danger); background: #fff5f5;
-            border: 1px solid #fed7d7; border-radius: 8px;
-            padding: 12px 14px; font-size: 13px;
-        }
+        .ocr-error { color: var(--danger); background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; padding: 12px 14px; font-size: 13px; }
         #ocrResultTable { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
-        #ocrResultTable th {
-            background: #f7fafc; padding: 8px 8px; font-weight: 600;
-            color: #4a5568; border-bottom: 2px solid #e2e8f0; text-align: left;
-        }
+        #ocrResultTable th { background: #f7fafc; padding: 8px 8px; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; text-align: left; }
         #ocrResultTable td { padding: 7px 8px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
-        #ocrResultTable input[type="text"],
-        #ocrResultTable input[type="number"] {
-            padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px;
-            font-size: 12px; width: 100%; box-sizing: border-box;
-        }
+        #ocrResultTable input[type="text"], #ocrResultTable input[type="number"] { padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 12px; width: 100%; box-sizing: border-box; }
         #ocrResultTable input:focus { border-color: var(--success); outline: none; }
-        #ocrResultTable select {
-            padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px;
-            font-size: 12px; width: 100%; background: white;
-        }
+        #ocrResultTable select { padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 12px; width: 100%; background: white; }
         .ocr-row-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--success); }
         .btn-ocr-confirm {
-            background: linear-gradient(135deg, var(--success), #276749);
-            color: white; border: none; border-radius: 8px;
-            padding: 11px 20px; font-size: 14px; font-weight: bold;
-            cursor: pointer; width: 100%; margin-top: 14px;
+            background: linear-gradient(135deg, var(--success), #276749); color: white; border: none; border-radius: 8px;
+            padding: 11px 20px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 14px;
         }
         .btn-ocr-confirm:hover { opacity: 0.88; }
-        /* ========== AI 截圖匯入樣式結束 ========== */
+        
+        .btn-ai-scan {
+            background: linear-gradient(135deg, #805ad5, #553c9a);
+            color: white; border: none; border-radius: 8px;
+            padding: 10px 18px; font-size: 14px; font-weight: bold;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            box-shadow: 0 2px 8px rgba(128,90,213,0.3);
+            transition: 0.2s;
+        }
+        .btn-ai-scan:hover { opacity: 0.88; transform: translateY(-1px); }
 
         @media (max-width: 768px) {
             body { padding: 10px; }
@@ -188,9 +155,7 @@
             h2 { align-items: flex-start; }
             .refresh-controls { flex-direction: column; align-items: flex-start !important; gap: 10px; margin-top: 10px; }
             .refresh-controls select { width: 100%; }
-            @media (min-width: 500px) {
-                .sub-chart { min-width: 48%; }
-            }
+            @media (min-width: 500px) { .sub-chart { min-width: 48%; } }
         }
     </style>
 </head>
@@ -198,6 +163,17 @@
 
     <h1 class="header-title">📊 資產儀表板</h1>
 
+    <div id="ocrOverlay">
+        <div id="ocrBox">
+            <button id="ocrCloseBtn" onclick="closeOcrModal()">✕</button>
+            <h3>🤖 Gemini AI 辨識結果</h3>
+            <p class="ocr-sub">確認後可直接修改各欄位，勾選要匯入的標的</p>
+            <img id="ocrPreviewImg" class="ocr-preview-img" src="" alt="">
+            <div id="ocrBody">
+                <div class="ocr-status"><span class="ocr-spinner"></span>AI 分析中，請稍候...</div>
+            </div>
+        </div>
+    </div>
     <div class="container">
         <div class="panel" style="flex: 1.8;">
             <h2>
@@ -284,6 +260,15 @@
                     <label>設質借款總額 (NT$)</label>
                     <input type="number" id="loanAmount" placeholder="輸入維持率計算基準" min="0" onchange="updateUI()">
                 </div>
+                
+                <div class="form-group" style="flex: 2;">
+                    <label>Gemini API Key (照片辨識用)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="password" id="geminiApiKey" placeholder="設定了 FIXED_KEY 則自動帶入" onchange="saveData()" style="flex:1;">
+                        <button onclick="toggleKeyVisibility()" id="keyToggleBtn" style="padding:8px 10px; background:#718096; color:white; border:none; border-radius:6px; cursor:pointer; white-space:nowrap; font-size:12px;">👁 顯示</button>
+                    </div>
+                </div>
+                
                 <div class="form-group" style="flex-direction: row; gap: 10px;">
                     <button class="btn-export" onclick="exportData()">💾 匯出備份</button>
                     <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importData(event)">
@@ -291,46 +276,17 @@
                 </div>
             </div>
 
-            <!-- ===== 新增：AI 截圖辨識匯入 ===== -->
-            <h2 class="section-title">📸 AI 截圖辨識匯入</h2>
-            <p style="font-size:13px;color:#718096;margin:0 0 10px;">上傳券商庫存截圖，Gemini AI 自動辨識代號、股數、成本，確認後一鍵匯入。支援 iOS 相簿與拍照。</p>
-
-            <div class="ocr-model-row" style="align-items:center; gap:8px; margin-bottom:10px;">
-                <label style="white-space:nowrap; margin:0;">🔑 Gemini API Key</label>
-                <input type="password" id="geminiApiKey" placeholder="貼上 API Key"
-                       autocomplete="off" style="flex:1;"
-                       oninput="saveGeminiKey(this.value)">
-                <button onclick="toggleKeyVisibility()" id="keyToggleBtn"
-                        style="padding:8px 10px; background:#718096; color:white; border:none; border-radius:6px; cursor:pointer; white-space:nowrap; font-size:12px;">👁 顯示</button>
-            </div>
-            <!-- ★★★ 把你的 API Key 貼在這裡，永久固定不會消失 ★★★ -->
-            <script>const _FIXED_KEY = 'AQ.Ab8RN6KEVfkCv6pebFQByaSFMMuNLProUTTO11gfnCyZEKmW-Q';</script>
-            <!-- 例如: const _FIXED_KEY = 'AQ.Ab8RN6K...你的完整Key'; -->
-
-
-            <!-- 隱藏的 file input，由按鈕觸發（iOS Safari 相容） -->
-            <input type="file" id="ocrFileInput"
-                   style="display:none;" onchange="handleOcrImage(this.files[0])">
-
-            <div class="ocr-drop-zone" id="ocrDropZone" onclick="document.getElementById('ocrFileInput').click()">
-                <span style="font-size:28px;">📷</span>
-                <div style="margin-top:6px;"><strong>點擊上傳截圖</strong></div>
-                <div style="font-size:12px;margin-top:4px;">iOS 可選相簿或拍照 ／ 桌機可拖曳上傳</div>
-            </div>
-
-            <!-- AI 解析 Modal -->
-            <div id="ocrOverlay">
-                <div id="ocrBox">
-                    <button id="ocrCloseBtn" onclick="closeOcrModal()">✕</button>
-                    <h3>🤖 Gemini AI 辨識結果</h3>
-                    <p class="ocr-sub">確認後可直接修改各欄位，勾選要匯入的標的</p>
-                    <img id="ocrPreviewImg" class="ocr-preview-img" src="" alt="">
-                    <div id="ocrBody">
-                        <div class="ocr-status"><span class="ocr-spinner"></span>AI 分析中，請稍候...</div>
-                    </div>
+            <div style="margin-top: 12px; padding: 16px; background: linear-gradient(135deg, #faf5ff, #f0e6ff); border-radius: 10px; border: 1px solid #d6bcfa;">
+                <div style="font-size: 13px; font-weight: 600; color: #553c9a; margin-bottom: 10px;">📸 快速批量匯入 (Gemini)</div>
+                <div style="font-size: 12px; color: #805ad5; margin-bottom: 12px;">上傳券商 App 截圖，AI 自動辨識多筆持股並一鍵匯入</div>
+                
+                <input type="file" id="ocrFileInput" style="display:none;" onchange="handleOcrImage(this.files[0])">
+                <div class="ocr-drop-zone" id="ocrDropZone" onclick="document.getElementById('ocrFileInput').click()">
+                    <span style="font-size:28px;">📷</span>
+                    <div style="margin-top:6px;"><strong>點擊上傳截圖</strong></div>
+                    <div style="font-size:12px;margin-top:4px;">iOS 可選相簿或拍照 ／ 桌機可拖曳上傳</div>
                 </div>
             </div>
-            <!-- ===== AI 截圖辨識匯入結束 ===== -->
 
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; margin-bottom: 10px; border-bottom: 2px solid #edf2f7; padding-bottom: 10px; flex-wrap: wrap;">
                 <h2 style="margin: 0; border: none; padding: 0; font-size: 1.25rem;">📋 目前庫存明細</h2>
@@ -342,7 +298,7 @@
                         <option value="60">自動更新 (1分鐘)</option>
                     </select>
                     <button class="btn-fetch" id="refreshAllBtn" onclick="refreshAllPrices(false)" style="margin: 0; background-color: #2b6cb0;">🔄 一鍵閃電更新</button>
-		    <span id="lastUpdateText" style="font-size: 13px; color: #718096; font-weight: bold; margin-left: 8px;">最後更新: --:--:--</span>
+                    <span id="lastUpdateText" style="font-size: 13px; color: #718096; font-weight: bold; margin-left: 8px;">最後更新: --:--:--</span>
                 </div>
             </div>
             
@@ -405,20 +361,15 @@
     </div>
 
     <script>
+        // ★★★ 在這裡貼上你的 API Key，系統開機會自動載入 ★★★
+        // 請將剛申請好的 AQ. 開頭或 AIza 開頭的 Key 貼到單引號中
+        const _FIXED_KEY = '';
+
         let portfolio = [];
         let editingId = null;
         let autoRefreshIntervalId = null;
 
-        const defaultPortfolio = [
-            { id: 101, name: 'AAPL', apiTicker: '', assetType: '現股', market: '美股', status: '一般', shares: 50, costPrice: 150.00, price: 180.25, multiplier: 1 },
-            { id: 102, name: 'NVDA', apiTicker: '', assetType: '現股', market: '美股', status: '一般', shares: 20, costPrice: 450.00, price: 880.00, multiplier: 1 },
-            { id: 103, name: '0050', apiTicker: '', assetType: '現股', market: '台股', status: '一般', shares: 303, costPrice: 77.2, price: 104.15, multiplier: 1 },
-            { id: 104, name: '0050', apiTicker: '', assetType: '現股', market: '台股', status: '設質', shares: 3, costPrice: 77.2, price: 104.15, multiplier: 1000 },
-            { id: 105, name: '小型國巨期', apiTicker: '2327', assetType: '期貨', market: '台股', status: '一般', shares: 5, costPrice: 562.404, price: 780, multiplier: 100, margin: 94770 },
-            { id: 106, name: '1432', apiTicker: '', assetType: '現股', market: '台股', status: '一般', shares: 1, costPrice: 13, price: 17.2, multiplier: 1000 },
-            { id: 109, name: 'HPQ買權', apiTicker: 'HPQ240621C00030000', assetType: '期權', market: '美股', status: '一般', shares: 1, costPrice: 0.10, price: 0.16, multiplier: 100 }
-        ];
-
+        const defaultPortfolio = [];
         const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycby5rtFTOlviZASyaLkIOBI5rHMyE_mudct0JYo5AfBzD5eQbtxLxNx-CPKBCmemvycejw/exec"; 
 
         function calcStockData(s, rate) {
@@ -445,11 +396,14 @@
         }
 
         function initApp() {
-            // 優先用寫死的 Key，其次用 localStorage
-            const fixedKey = (typeof _FIXED_KEY !== 'undefined' && _FIXED_KEY) ? _FIXED_KEY : null;
-            const savedKey = localStorage.getItem('geminiApiKey');
-            const keyToUse = fixedKey || savedKey || '';
-            if (keyToUse) document.getElementById('geminiApiKey').value = keyToUse;
+            // 優先讀取寫死的 API Key，其次讀取 LocalStorage
+            const savedKey = localStorage.getItem('geminiApiKey') || '';
+            const keyToUse = _FIXED_KEY || savedKey;
+            
+            if (keyToUse) {
+                document.getElementById('geminiApiKey').value = keyToUse;
+                localStorage.setItem('geminiApiKey', keyToUse); // 確保同步寫入
+            }
 
             const savedData = localStorage.getItem('myStockPortfolioData');
             const savedLoan = localStorage.getItem('myPortfolioLoan');
@@ -475,7 +429,19 @@
             updateUI();
             onAssetTypeChange();
             setupAutoRefresh(); 
-	    refreshAllPrices(true);	
+            if(portfolio.length > 0) refreshAllPrices(true);	
+        }
+
+        function toggleKeyVisibility() {
+            const input = document.getElementById('geminiApiKey');
+            const btn = document.getElementById('keyToggleBtn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerText = '🙈 隱藏';
+            } else {
+                input.type = 'password';
+                btn.innerText = '👁 顯示';
+            }
         }
 
         function saveData() {
@@ -483,6 +449,7 @@
             localStorage.setItem('myPortfolioLoan', document.getElementById('loanAmount').value);
             localStorage.setItem('myPortfolioAutoRefresh', document.getElementById('autoRefresh').value);
             localStorage.setItem('myPortfolioExchangeRate', document.getElementById('exchangeRate').value);
+            localStorage.setItem('myGeminiApiKey', document.getElementById('geminiApiKey').value.trim());
         }
 
         function recalculateCurrencies() {
@@ -538,25 +505,7 @@
                     if(data.loanAmount !== undefined) document.getElementById('loanAmount').value = data.loanAmount;
                     if(data.history) localStorage.setItem('equityHistoryData', JSON.stringify(data.history));
                     saveData();
-                    function saveGeminiKey(val) {
-            if (val.trim()) localStorage.setItem('geminiApiKey', val.trim());
-            else localStorage.removeItem('geminiApiKey');
-        }
-
-        function toggleKeyVisibility() {
-            const input = document.getElementById('geminiApiKey');
-            const btn = document.getElementById('keyToggleBtn');
-            if (input.type === 'password') {
-                input.type = 'text';
-                btn.innerText = '🙈 隱藏';
-            } else {
-                input.type = 'password';
-                btn.innerText = '👁 顯示';
-            }
-        }
-
-        // 頁面完全載入後再讀取儲存的 Key
-        initApp();
+                    initApp();
                     alert("✅ 資料還原成功！");
                 } catch(err) { alert("檔案格式錯誤"); }
             };
@@ -590,15 +539,15 @@
             const inputName = document.getElementById('stockName').value.trim().toUpperCase();
             let fetchTarget = inputApiTicker || inputName;
             
-            const priceInput = document.getElementById('price');
-            const marketSelect = document.getElementById('market');
-            const fetchBtn = document.getElementById('fetchBtn');
-            
             if (!fetchTarget) {
                 alert("請至少輸入名稱或 API 代號！");
                 return;
             }
 
+            const priceInput = document.getElementById('price');
+            const marketSelect = document.getElementById('market');
+            const fetchBtn = document.getElementById('fetchBtn');
+            
             fetchBtn.innerText = "抓取中...";
             fetchBtn.style.opacity = "0.7";
             priceInput.value = '';
@@ -659,6 +608,7 @@
         }
 
         async function refreshAllPrices(isAuto = false) {
+            if (portfolio.length === 0) return;
             const btn = document.getElementById('refreshAllBtn');
             
             if (!isAuto) {
@@ -703,8 +653,7 @@
                 return false;
             });
 
-            const results = await Promise.all([ratePromise, ...stockPromises]);
-            const updatedCount = results.slice(1).filter(r => r === true).length;
+            await Promise.all([ratePromise, ...stockPromises]);
 
             const finalRate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
             portfolio.forEach(s => calcStockData(s, finalRate));
@@ -716,7 +665,7 @@
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
                             now.getMinutes().toString().padStart(2, '0') + ':' + 
                             now.getSeconds().toString().padStart(2, '0');
-	    document.getElementById('lastUpdateText').innerText = `最後更新: ${timeStr}`;
+            document.getElementById('lastUpdateText').innerText = `最後更新: ${timeStr}`;
             if (isAuto) {
                 btn.innerText = `✅ 已閃電更新 (${timeStr})`;
             } else {
@@ -1002,10 +951,11 @@
         }
 
         // =====================================================
-        // 以下為新增：AI 截圖辨識匯入功能
+        // AI 截圖辨識匯入功能
         // =====================================================
 
-        // 拖曳支援（桌機）
+        let aiOcrProcessing = false;
+
         const ocrZone = document.getElementById('ocrDropZone');
         ocrZone.addEventListener('dragover', e => { e.preventDefault(); ocrZone.classList.add('drag-over'); });
         ocrZone.addEventListener('dragleave', () => ocrZone.classList.remove('drag-over'));
@@ -1014,10 +964,8 @@
             ocrZone.classList.remove('drag-over');
             if (e.dataTransfer.files[0]) handleOcrImage(e.dataTransfer.files[0]);
         });
-        // 避免 drop zone 的 onclick 在拖曳結束後重複觸發
         ocrZone.addEventListener('dragenter', e => e.preventDefault());
 
-        // ESC / 背景點擊關閉
         document.getElementById('ocrOverlay').addEventListener('click', function(e) {
             if (e.target === this) closeOcrModal();
         });
@@ -1033,11 +981,10 @@
 
             const apiKey = document.getElementById('geminiApiKey').value.trim();
             if (!apiKey) {
-                alert('請先填入 Google AI Studio API Key！');
+                alert('請先在設定區填入 Google AI Studio API Key！');
                 return;
             }
 
-            // 讀 base64
             const base64 = await new Promise((res, rej) => {
                 const r = new FileReader();
                 r.onload = e => res(e.target.result.split(',')[1]);
@@ -1047,7 +994,6 @@
 
             const mediaType = ({'image/png':'image/png','image/webp':'image/webp','image/gif':'image/gif'})[file.type] || 'image/jpeg';
 
-            // 顯示 Modal + 預覽
             document.getElementById('ocrPreviewImg').src = `data:${mediaType};base64,${base64}`;
             document.getElementById('ocrBody').innerHTML = '<div class="ocr-status"><span class="ocr-spinner"></span>Gemini AI 分析中，請稍候...</div>';
             document.getElementById('ocrOverlay').classList.add('active');
@@ -1066,32 +1012,28 @@
                 const reqBody = JSON.stringify({
                     contents: [{
                         parts: [
-                            { inline_data: { mime_type: mediaType, data: base64 } },
+                            { inlineData: { mimeType: mediaType, data: base64 } },
                             { text: prompt }
                         ]
                     }],
-                    generationConfig: { temperature: 0, maxOutputTokens: 1024 }
+                    generationConfig: { temperature: 0, responseMimeType: "application/json" }
                 });
 
-                // 自動 fallback：優先 3.1 Flash Lite，失敗改 3.5 Flash
-                const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
+                // 雙引擎備援：優先 3.1 Flash Lite，失敗改 2.5 Flash
+                const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
                 let resp, data, lastErr;
+                
                 for (const tryModel of modelsToTry) {
-                    // 統一用 x-goog-api-key header，AQ. 和 AIzaSy 都支援
-                    const tryUrl = `https://generativelanguage.googleapis.com/v1beta/models/${tryModel}:generateContent`;
+                    const tryUrl = `https://generativelanguage.googleapis.com/v1beta/models/${tryModel}:generateContent?key=${apiKey}`;
                     try {
                         resp = await fetch(tryUrl, {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'x-goog-api-key': apiKey
-                            },
+                            headers: { 'Content-Type': 'application/json' },
                             body: reqBody
                         });
                         data = await resp.json();
-                        if (resp.ok) break; // 成功就跳出
+                        if (resp.ok) break; 
                         lastErr = data.error?.message || `HTTP ${resp.status}`;
-                        // 只有 400/404（模型不支援）才嘗試下一個，其他錯誤直接拋出
                         if (resp.status !== 400 && resp.status !== 404) break;
                     } catch (networkErr) {
                         throw new Error(`網路連線失敗：${networkErr.message}`);
@@ -1100,8 +1042,7 @@
 
                 if (!resp.ok) {
                     const msg = data?.error?.message || lastErr || `HTTP ${resp.status}`;
-                    const keyPrefix = apiKey ? apiKey.substring(0, 6) + '...' : '(空白)';
-                    if (resp.status === 401) throw new Error(`認證失敗 (401)：Key 開頭=${keyPrefix}，${msg}`);
+                    if (resp.status === 401) throw new Error(`認證失敗 (401)：請確認 API Key 是否正確且未過期。系統讀到=${apiKey.substring(0, 6)}...`);
                     if (resp.status === 403) throw new Error(`權限不足 (403)：${msg}`);
                     if (resp.status === 429) throw new Error(`請求頻率超限 (429)，請稍後再試。`);
                     throw new Error(`${msg} (HTTP ${resp.status})`);
@@ -1110,7 +1051,6 @@
                 const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
                 if (!raw) throw new Error('AI 回傳空結果，請換一張更清晰的截圖。');
 
-                // Strip markdown code fences if present
                 const cleaned = raw.replace(/```json|```/g, '').trim();
                 const match = cleaned.match(/\[[\s\S]*\]/);
                 if (!match) throw new Error('AI 無法辨識出股票資料，請確認截圖包含明確的股票表格（代號、股數、成本欄）。');
@@ -1124,10 +1064,8 @@
                 document.getElementById('ocrBody').innerHTML =
                     `<div class="ocr-error">❌ 辨識失敗：${err.message}</div>
                      <p style="font-size:12px;color:#718096;margin-top:8px;">
-                       💡 排錯建議：<br>
-                       • 確認 API Key 從 <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> 取得<br>
-                       • 3.1 Flash Lite 若失敗請改選 Gemini 2.5 Flash<br>
-                       • 截圖需包含代號、股數、成本等欄位
+                        💡 排錯建議：<br>
+                        • 截圖需包含代號、股數、成本等欄位
                      </p>`;
             }
         }
@@ -1198,18 +1136,12 @@
             updateUI();
             closeOcrModal();
 
-            if (confirm(`✅ 已匯入 ${imported} 筆持股！
-
-是否立即一鍵更新現價？`)) {
+            if (confirm(`✅ 已匯入 ${imported} 筆持股！\n\n是否立即一鍵更新現價？`)) {
                 refreshAllPrices(false);
             }
         }
 
-        // =====================================================
-        // AI 截圖辨識匯入功能結束
-        // =====================================================
-
-        initApp();
+        window.onload = initApp;
     </script>
 </body>
 </html>
