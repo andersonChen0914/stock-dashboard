@@ -295,10 +295,14 @@
             <h2 class="section-title">📸 AI 截圖辨識匯入</h2>
             <p style="font-size:13px;color:#718096;margin:0 0 10px;">上傳券商庫存截圖，Gemini AI 自動辨識代號、股數、成本，確認後一鍵匯入。支援 iOS 相簿與拍照。</p>
 
-            <!-- ★ 鑲嵌 API Key：把你的 Key 填入下方引號內即可 -->
-            <input type="hidden" id="geminiApiKey" value="">
-            <script>document.getElementById('geminiApiKey').value = 'AQ.Ab8RN6K8bj6x2x5jJgAu_sz2GbWEhf9QchCG9rGXQRVoy7L02Q';</script>
-            <!-- 把 Key 貼在 value="" 的引號裡，例如 value="AIzaSyXXXXXXXXXXX" -->
+            <div class="ocr-model-row" style="align-items:center; gap:8px; margin-bottom:10px;">
+                <label style="white-space:nowrap; margin:0;">🔑 Gemini API Key</label>
+                <input type="password" id="geminiApiKey" placeholder="貼上 API Key（儲存後永久保留）"
+                       autocomplete="off" style="flex:1;"
+                       oninput="saveGeminiKey(this.value)">
+                <button onclick="toggleKeyVisibility()" id="keyToggleBtn"
+                        style="padding:8px 10px; background:#718096; color:white; border:none; border-radius:6px; cursor:pointer; white-space:nowrap; font-size:12px;">👁 顯示</button>
+            </div>
 
 
             <!-- 隱藏的 file input，由按鈕觸發（iOS Safari 相容） -->
@@ -525,7 +529,30 @@
                     if(data.loanAmount !== undefined) document.getElementById('loanAmount').value = data.loanAmount;
                     if(data.history) localStorage.setItem('equityHistoryData', JSON.stringify(data.history));
                     saveData();
-                    initApp();
+                    // ── Gemini API Key 永久儲存（localStorage，更新版本不會消失）──
+        (function loadGeminiKey() {
+            const saved = localStorage.getItem('geminiApiKey');
+            if (saved) document.getElementById('geminiApiKey').value = saved;
+        })();
+
+        function saveGeminiKey(val) {
+            if (val.trim()) localStorage.setItem('geminiApiKey', val.trim());
+            else localStorage.removeItem('geminiApiKey');
+        }
+
+        function toggleKeyVisibility() {
+            const input = document.getElementById('geminiApiKey');
+            const btn = document.getElementById('keyToggleBtn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerText = '🙈 隱藏';
+            } else {
+                input.type = 'password';
+                btn.innerText = '👁 顯示';
+            }
+        }
+
+        initApp();
                     alert("✅ 資料還原成功！");
                 } catch(err) { alert("檔案格式錯誤"); }
             };
