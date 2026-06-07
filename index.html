@@ -80,6 +80,102 @@
         .sub-charts-container { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; border-top: 1px dashed #e2e8f0; padding-top: 20px; }
         .sub-chart { flex: 1; min-width: 100%; height: 300px; }
 
+        /* ========== 新增：AI 截圖匯入樣式 ========== */
+        .ocr-section-title { margin-top: 25px; border-top: 1px dashed #cbd5e0; padding-top: 15px; }
+        .ocr-drop-zone {
+            border: 2px dashed #cbd5e0;
+            border-radius: 10px;
+            padding: 22px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #f0fff4;
+            color: #718096;
+            font-size: 14px;
+            position: relative;
+            margin-bottom: 0;
+        }
+        .ocr-drop-zone:hover, .ocr-drop-zone.drag-over {
+            border-color: var(--success);
+            background: #c6f6d5;
+            color: var(--success);
+        }
+        .ocr-model-row {
+            display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap;
+        }
+        .ocr-model-row label { font-weight: 600; font-size: 13px; color: #4a5568; white-space: nowrap; margin: 0; }
+        .ocr-model-row input {
+            flex: 1; padding: 7px 10px; border: 1px solid #e2e8f0;
+            border-radius: 6px; font-size: 13px; font-family: monospace; min-width: 160px;
+        }
+        .ocr-model-row select {
+            padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px;
+            font-size: 13px; background: white; min-width: 200px;
+        }
+        /* AI Modal */
+        #ocrOverlay {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.65); justify-content: center; align-items: center;
+        }
+        #ocrOverlay.active { display: flex; }
+        #ocrBox {
+            background: white; border-radius: 14px; padding: 26px 28px;
+            max-width: 660px; width: 94vw; max-height: 88vh;
+            overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+            position: relative;
+        }
+        #ocrBox h3 { margin: 0 0 4px; color: var(--success); font-size: 1.1rem; }
+        #ocrBox .ocr-sub { font-size: 12px; color: #718096; margin-bottom: 14px; }
+        #ocrCloseBtn {
+            position: absolute; top: 14px; right: 16px;
+            background: none; border: none; font-size: 22px; color: #a0aec0; cursor: pointer; padding: 0; line-height: 1;
+        }
+        .ocr-preview-img {
+            width: 100%; max-height: 160px; object-fit: contain;
+            border-radius: 8px; margin-bottom: 14px;
+            border: 1px solid #e2e8f0; background: #f7fafc; display: block;
+        }
+        .ocr-status {
+            text-align: center; padding: 24px 16px; color: var(--success); font-weight: bold; font-size: 14px;
+        }
+        .ocr-spinner {
+            display: inline-block; width: 20px; height: 20px;
+            border: 3px solid #c6f6d5; border-top-color: var(--success);
+            border-radius: 50%; animation: ocrSpin 0.75s linear infinite;
+            vertical-align: middle; margin-right: 8px;
+        }
+        @keyframes ocrSpin { to { transform: rotate(360deg); } }
+        .ocr-error {
+            color: var(--danger); background: #fff5f5;
+            border: 1px solid #fed7d7; border-radius: 8px;
+            padding: 12px 14px; font-size: 13px;
+        }
+        #ocrResultTable { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+        #ocrResultTable th {
+            background: #f7fafc; padding: 8px 8px; font-weight: 600;
+            color: #4a5568; border-bottom: 2px solid #e2e8f0; text-align: left;
+        }
+        #ocrResultTable td { padding: 7px 8px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
+        #ocrResultTable input[type="text"],
+        #ocrResultTable input[type="number"] {
+            padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px;
+            font-size: 12px; width: 100%; box-sizing: border-box;
+        }
+        #ocrResultTable input:focus { border-color: var(--success); outline: none; }
+        #ocrResultTable select {
+            padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px;
+            font-size: 12px; width: 100%; background: white;
+        }
+        .ocr-row-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--success); }
+        .btn-ocr-confirm {
+            background: linear-gradient(135deg, var(--success), #276749);
+            color: white; border: none; border-radius: 8px;
+            padding: 11px 20px; font-size: 14px; font-weight: bold;
+            cursor: pointer; width: 100%; margin-top: 14px;
+        }
+        .btn-ocr-confirm:hover { opacity: 0.88; }
+        /* ========== AI 截圖匯入樣式結束 ========== */
+
         @media (max-width: 768px) {
             body { padding: 10px; }
             .container { gap: 10px; }
@@ -194,6 +290,36 @@
                     <button class="btn-import" onclick="document.getElementById('importFile').click()">📂 載入還原</button>
                 </div>
             </div>
+
+            <!-- ===== 新增：AI 截圖辨識匯入 ===== -->
+            <h2 class="section-title">📸 AI 截圖辨識匯入</h2>
+            <p style="font-size:13px;color:#718096;margin:0 0 10px;">上傳券商庫存截圖，Gemini AI 自動辨識代號、股數、成本，確認後一鍵匯入。支援 iOS 相簿與拍照。</p>
+
+            <!-- ★ 鑲嵌 API Key：把你的 Key 填入下方引號內即可 -->
+            <input type="hidden" id="geminiApiKey" value="AQ.Ab8RN6K8bj6x2x5jJgAu_sz2GbWEhf9QchCG9rGXQRVoy7L02Q">
+            <!-- 把 Key 貼在 value="" 的引號裡，例如 value="AIzaSyXXXXXXXXXXX" -->
+
+
+            <div class="ocr-drop-zone" id="ocrDropZone">
+                <input type="file" id="ocrFileInput" accept="image/*" onchange="handleOcrImage(this.files[0])">
+                <span style="font-size:28px;">📷</span>
+                <div style="margin-top:6px;"><strong>點擊選取截圖（iOS 可選相簿或拍照）</strong></div>
+                <div style="font-size:12px;margin-top:4px;">支援 JPG、PNG、WEBP；桌機也可拖曳上傳</div>
+            </div>
+
+            <!-- AI 解析 Modal -->
+            <div id="ocrOverlay">
+                <div id="ocrBox">
+                    <button id="ocrCloseBtn" onclick="closeOcrModal()">✕</button>
+                    <h3>🤖 Gemini AI 辨識結果</h3>
+                    <p class="ocr-sub">確認後可直接修改各欄位，勾選要匯入的標的</p>
+                    <img id="ocrPreviewImg" class="ocr-preview-img" src="" alt="">
+                    <div id="ocrBody">
+                        <div class="ocr-status"><span class="ocr-spinner"></span>AI 分析中，請稍候...</div>
+                    </div>
+                </div>
+            </div>
+            <!-- ===== AI 截圖辨識匯入結束 ===== -->
 
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; margin-bottom: 10px; border-bottom: 2px solid #edf2f7; padding-bottom: 10px; flex-wrap: wrap;">
                 <h2 style="margin: 0; border: none; padding: 0; font-size: 1.25rem;">📋 目前庫存明細</h2>
@@ -839,6 +965,206 @@
                 paper_bgcolor: 'transparent'
             }, {responsive: true, displayModeBar: false}); 
         }
+
+        // =====================================================
+        // 以下為新增：AI 截圖辨識匯入功能
+        // =====================================================
+
+        // 拖曳支援（桌機）
+        const ocrZone = document.getElementById('ocrDropZone');
+        ocrZone.addEventListener('dragover', e => { e.preventDefault(); ocrZone.classList.add('drag-over'); });
+        ocrZone.addEventListener('dragleave', () => ocrZone.classList.remove('drag-over'));
+        ocrZone.addEventListener('drop', e => {
+            e.preventDefault();
+            ocrZone.classList.remove('drag-over');
+            if (e.dataTransfer.files[0]) handleOcrImage(e.dataTransfer.files[0]);
+        });
+
+        // ESC / 背景點擊關閉
+        document.getElementById('ocrOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeOcrModal();
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOcrModal(); });
+
+        function closeOcrModal() {
+            document.getElementById('ocrOverlay').classList.remove('active');
+            document.getElementById('ocrFileInput').value = '';
+        }
+
+        async function handleOcrImage(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+
+            const apiKey = document.getElementById('geminiApiKey').value.trim();
+            if (!apiKey) {
+                alert('請先填入 Google AI Studio API Key！');
+                return;
+            }
+
+            // 讀 base64
+            const base64 = await new Promise((res, rej) => {
+                const r = new FileReader();
+                r.onload = e => res(e.target.result.split(',')[1]);
+                r.onerror = rej;
+                r.readAsDataURL(file);
+            });
+
+            const mediaType = ({'image/png':'image/png','image/webp':'image/webp','image/gif':'image/gif'})[file.type] || 'image/jpeg';
+
+            // 顯示 Modal + 預覽
+            document.getElementById('ocrPreviewImg').src = `data:${mediaType};base64,${base64}`;
+            document.getElementById('ocrBody').innerHTML = '<div class="ocr-status"><span class="ocr-spinner"></span>Gemini AI 分析中，請稍候...</div>';
+            document.getElementById('ocrOverlay').classList.add('active');
+
+            const prompt = `分析此券商庫存截圖，回傳純 JSON 陣列，不含 markdown 也不含任何說明文字。
+格式：[{"name":"股票名稱","ticker":"代號","shares":數量,"costPrice":成本均價,"market":"台股或美股"}]
+規則：
+- name: 股票中文名稱（或英文）
+- ticker: 股票代號（台股純數字如0050，美股英文如AAPL）
+- shares: 持有股數（數字）
+- costPrice: 每股成本均價（數字，若截圖有顯示均價或成本則取該欄位）
+- market: 純數字代號判斷為"台股"，英文代號為"美股"
+只回傳 JSON 陣列，不要加任何其他內容。`;
+
+            try {
+                const reqBody = JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { inline_data: { mime_type: mediaType, data: base64 } },
+                            { text: prompt }
+                        ]
+                    }],
+                    generationConfig: { temperature: 0, maxOutputTokens: 1024 }
+                });
+
+                // 自動 fallback：優先 3.1 Flash Lite，失敗改 3.5 Flash
+                const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
+                let resp, data, lastErr;
+                for (const tryModel of modelsToTry) {
+                    const tryUrl = `https://generativelanguage.googleapis.com/v1beta/models/${tryModel}:generateContent?key=${apiKey}`;
+                    try {
+                        resp = await fetch(tryUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: reqBody
+                        });
+                        data = await resp.json();
+                        if (resp.ok) break; // 成功就跳出
+                        lastErr = data.error?.message || `HTTP ${resp.status}`;
+                        // 只有 400/404（模型不支援）才嘗試下一個，其他錯誤直接拋出
+                        if (resp.status !== 400 && resp.status !== 404) break;
+                    } catch (networkErr) {
+                        throw new Error(`網路連線失敗：${networkErr.message}`);
+                    }
+                }
+
+                if (!resp.ok) {
+                    const msg = data?.error?.message || lastErr || `HTTP ${resp.status}`;
+                    if (resp.status === 403) throw new Error(`API Key 無效或權限不足 (403)：${msg}`);
+                    if (resp.status === 429) throw new Error(`請求頻率超限 (429)，請稍後再試。`);
+                    throw new Error(`${msg} (HTTP ${resp.status})`);
+                }
+
+                const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                if (!raw) throw new Error('AI 回傳空結果，請換一張更清晰的截圖。');
+
+                // Strip markdown code fences if present
+                const cleaned = raw.replace(/```json|```/g, '').trim();
+                const match = cleaned.match(/\[[\s\S]*\]/);
+                if (!match) throw new Error('AI 無法辨識出股票資料，請確認截圖包含明確的股票表格（代號、股數、成本欄）。');
+
+                const stocks = JSON.parse(match[0]);
+                if (!Array.isArray(stocks) || stocks.length === 0) throw new Error('辨識結果為空，請嘗試更清晰的截圖。');
+
+                renderOcrTable(stocks);
+
+            } catch (err) {
+                document.getElementById('ocrBody').innerHTML =
+                    `<div class="ocr-error">❌ 辨識失敗：${err.message}</div>
+                     <p style="font-size:12px;color:#718096;margin-top:8px;">
+                       💡 排錯建議：<br>
+                       • 確認 API Key 從 <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> 取得<br>
+                       • 3.1 Flash Lite 若失敗請改選 Gemini 2.5 Flash<br>
+                       • 截圖需包含代號、股數、成本等欄位
+                     </p>`;
+            }
+        }
+
+        function renderOcrTable(stocks) {
+            let rows = '';
+            stocks.forEach((s, i) => {
+                const isUS = s.market === '美股';
+                rows += `<tr>
+                    <td><input type="checkbox" class="ocr-row-check" data-idx="${i}" checked></td>
+                    <td><input type="text" id="ocr_name_${i}" value="${s.name || ''}"></td>
+                    <td><input type="text" id="ocr_ticker_${i}" value="${s.ticker || ''}"></td>
+                    <td><input type="number" id="ocr_shares_${i}" value="${s.shares || 0}" min="0" step="any"></td>
+                    <td><input type="number" id="ocr_cost_${i}" value="${s.costPrice || 0}" min="0" step="any"></td>
+                    <td>
+                        <select id="ocr_market_${i}">
+                            <option value="台股" ${!isUS ? 'selected' : ''}>台股</option>
+                            <option value="美股" ${isUS ? 'selected' : ''}>美股</option>
+                        </select>
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById('ocrBody').innerHTML = `
+                <div style="overflow-x:auto;">
+                    <table id="ocrResultTable">
+                        <thead>
+                            <tr><th>✓</th><th>名稱</th><th>代號</th><th>股數</th><th>成本均價</th><th>市場</th></tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+                <p style="font-size:11px;color:#718096;margin:10px 0 0;">⚠️ 現價暫填成本，匯入後請點「🔄 一鍵閃電更新」取得最新市價。</p>
+                <button class="btn-ocr-confirm" onclick="confirmOcrImport(${stocks.length})">✅ 匯入勾選的標的</button>
+            `;
+        }
+
+        function confirmOcrImport(count) {
+            const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
+            let imported = 0;
+
+            for (let i = 0; i < count; i++) {
+                const cb = document.querySelector(`.ocr-row-check[data-idx="${i}"]`);
+                if (!cb || !cb.checked) continue;
+
+                const name = document.getElementById(`ocr_name_${i}`).value.trim().toUpperCase();
+                const ticker = document.getElementById(`ocr_ticker_${i}`).value.trim().toUpperCase();
+                const shares = parseFloat(document.getElementById(`ocr_shares_${i}`).value) || 0;
+                const costPrice = parseFloat(document.getElementById(`ocr_cost_${i}`).value) || 0;
+                const market = document.getElementById(`ocr_market_${i}`).value;
+
+                if (!name || shares <= 0) continue;
+
+                const s = {
+                    id: Date.now() + i,
+                    name, apiTicker: (ticker && ticker !== name) ? ticker : '',
+                    assetType: '現股', market, status: '一般',
+                    shares, costPrice, price: costPrice, multiplier: 1, margin: 0
+                };
+                calcStockData(s, rate);
+                portfolio.push(s);
+                imported++;
+            }
+
+            if (imported === 0) { alert('請至少勾選一筆資料！'); return; }
+
+            saveData();
+            updateUI();
+            closeOcrModal();
+
+            if (confirm(`✅ 已匯入 ${imported} 筆持股！
+
+是否立即一鍵更新現價？`)) {
+                refreshAllPrices(false);
+            }
+        }
+
+        // =====================================================
+        // AI 截圖辨識匯入功能結束
+        // =====================================================
 
         initApp();
     </script>
