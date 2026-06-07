@@ -529,13 +529,7 @@
                     if(data.loanAmount !== undefined) document.getElementById('loanAmount').value = data.loanAmount;
                     if(data.history) localStorage.setItem('equityHistoryData', JSON.stringify(data.history));
                     saveData();
-                    // ── Gemini API Key 永久儲存（localStorage，更新版本不會消失）──
-        (function loadGeminiKey() {
-            const saved = localStorage.getItem('geminiApiKey');
-            if (saved) document.getElementById('geminiApiKey').value = saved;
-        })();
-
-        function saveGeminiKey(val) {
+                    function saveGeminiKey(val) {
             if (val.trim()) localStorage.setItem('geminiApiKey', val.trim());
             else localStorage.removeItem('geminiApiKey');
         }
@@ -551,6 +545,12 @@
                 btn.innerText = '👁 顯示';
             }
         }
+
+        // 頁面完全載入後再讀取儲存的 Key
+        window.addEventListener('DOMContentLoaded', function() {
+            const saved = localStorage.getItem('geminiApiKey');
+            if (saved) document.getElementById('geminiApiKey').value = saved;
+        });
 
         initApp();
                     alert("✅ 資料還原成功！");
@@ -1073,11 +1073,15 @@
                 const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
                 let resp, data, lastErr;
                 for (const tryModel of modelsToTry) {
-                    const tryUrl = `https://generativelanguage.googleapis.com/v1beta/models/${tryModel}:generateContent?key=${apiKey}`;
+                    // 統一用 x-goog-api-key header，AQ. 和 AIzaSy 都支援
+                    const tryUrl = `https://generativelanguage.googleapis.com/v1beta/models/${tryModel}:generateContent`;
                     try {
                         resp = await fetch(tryUrl, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-goog-api-key': apiKey
+                            },
                             body: reqBody
                         });
                         data = await resp.json();
@@ -1092,7 +1096,9 @@
 
                 if (!resp.ok) {
                     const msg = data?.error?.message || lastErr || `HTTP ${resp.status}`;
-                    if (resp.status === 403) throw new Error(`API Key 無效或權限不足 (403)：${msg}`);
+                    const keyPrefix = apiKey ? apiKey.substring(0, 6) + '...' : '(空白)';
+                    if (resp.status === 401) throw new Error(`認證失敗 (401)：Key 開頭=${keyPrefix}，${msg}`);
+                    if (resp.status === 403) throw new Error(`權限不足 (403)：${msg}`);
                     if (resp.status === 429) throw new Error(`請求頻率超限 (429)，請稍後再試。`);
                     throw new Error(`${msg} (HTTP ${resp.status})`);
                 }
