@@ -297,12 +297,11 @@
 
             <!-- ★ 鑲嵌 API Key：把你的 Key 填入下方引號內即可 -->
             <input type="hidden" id="geminiApiKey" value="">
-<script>document.getElementById('geminiApiKey').value = 'AQ.Ab8RN6K8bj6x2x5jJgAu_sz2GbWEhf9QchCG9rGXQRVoy7L02Q';</script>
             <!-- 把 Key 貼在 value="" 的引號裡，例如 value="AIzaSyXXXXXXXXXXX" -->
 
 
             <!-- 隱藏的 file input，由按鈕觸發（iOS Safari 相容） -->
-            <input type="file" id="ocrFileInput" accept="image/*"
+            <input type="file" id="ocrFileInput"
                    style="display:none;" onchange="handleOcrImage(this.files[0])">
 
             <div class="ocr-drop-zone" id="ocrDropZone" onclick="document.getElementById('ocrFileInput').click()">
@@ -1120,7 +1119,6 @@
                         <thead>
                             <tr><th>✓</th><th>名稱</th><th>代號</th><th>股數</th><th>成本均價</th><th>市場</th></tr>
                         </thead>
-					
                         <tbody>${rows}</tbody>
                     </table>
                 </div>
