@@ -167,7 +167,7 @@
         <div id="ocrBox">
             <button id="ocrCloseBtn" onclick="closeOcrModal()">✕</button>
             <h3>🤖 Gemini AI 辨識結果</h3>
-            <p class="ocr-sub">確認後可直接修改各欄位，勾選要匯入的標的</p>
+            <p class="ocr-sub">確認後可直接修改各欄位，若有相同標的將「自動加總數量並計算平均成本」</p>
             <img id="ocrPreviewImg" class="ocr-preview-img" src="" alt="">
             <div id="ocrBody">
                 <div class="ocr-status"><span class="ocr-spinner"></span>AI 分析中，請稍候...</div>
@@ -278,7 +278,7 @@
 
             <div style="margin-top: 12px; padding: 16px; background: linear-gradient(135deg, #faf5ff, #f0e6ff); border-radius: 10px; border: 1px solid #d6bcfa;">
                 <div style="font-size: 13px; font-weight: 600; color: #553c9a; margin-bottom: 10px;">📸 快速批量匯入 (Gemini)</div>
-                <div style="font-size: 12px; color: #805ad5; margin-bottom: 12px;">上傳券商 App 截圖，AI 自動辨識多筆持股並一鍵匯入</div>
+                <div style="font-size: 12px; color: #805ad5; margin-bottom: 12px;">上傳券商 App 截圖，AI 自動辨識多筆持股並一鍵匯入。若遇同標的會自動攤平加權計算。</div>
                 
                 <input type="file" id="ocrFileInput" style="display:none;" onchange="handleOcrImage(this.files[0])">
                 <div class="ocr-drop-zone" id="ocrDropZone" onclick="document.getElementById('ocrFileInput').click()">
@@ -362,9 +362,7 @@
 
     <script>
         // ★★★ 在這裡貼上你的 API Key，系統開機會自動載入 ★★★
-        // 請將剛申請好的 AQ. 開頭或 AIza 開頭的 Key 貼到單引號中
-        // 利用字串打斷法，避開 GitHub 掃描器
-	const keyPart1 = 'AQ.Ab8RN6I';
+        const keyPart1 = 'AQ.Ab8RN6I';
 	const keyPart2 = 'KjebLRWevD5952wGjHdqms';
 	const keyPart3 = 'YF_SFAOpsOpxOalK87i1g';
 	const _FIXED_KEY = keyPart1 + keyPart2 + keyPart3;
@@ -400,13 +398,12 @@
         }
 
         function initApp() {
-            // 優先讀取寫死的 API Key，其次讀取 LocalStorage
             const savedKey = localStorage.getItem('geminiApiKey') || '';
             const keyToUse = _FIXED_KEY || savedKey;
             
             if (keyToUse) {
                 document.getElementById('geminiApiKey').value = keyToUse;
-                localStorage.setItem('geminiApiKey', keyToUse); // 確保同步寫入
+                localStorage.setItem('geminiApiKey', keyToUse); 
             }
 
             const savedData = localStorage.getItem('myStockPortfolioData');
@@ -1107,9 +1104,9 @@
             `;
         }
 
-        function confirmOcrImport(count) {
+function confirmOcrImport(count) {
             const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
-            let imported = 0;
+            let importedCount = 0;
 
             for (let i = 0; i < count; i++) {
                 const cb = document.querySelector(`.ocr-row-check[data-idx="${i}"]`);
@@ -1123,26 +1120,69 @@
 
                 if (!name || shares <= 0) continue;
 
-                const s = {
-                    id: Date.now() + i,
-                    name, apiTicker: (ticker && ticker !== name) ? ticker : '',
-                    assetType: '現股', market, status: '一般',
-                    shares, costPrice, price: costPrice, multiplier: 1, margin: 0
-                };
-                calcStockData(s, rate);
-                portfolio.push(s);
-                imported++;
+                // 🚀 終極無死角交叉比對邏輯
+                const existingStock = portfolio.find(s => {
+                    if (s.market !== market || s.status !== '一般' || s.assetType !== '現股') return false;
+                    
+                    const existingTicker = s.apiTicker || s.name;
+                    const newTicker = ticker || name;
+                    
+                    // 只要代號互碰、名稱互碰，或交叉比對中獎，就視為同一檔股票
+                    return (existingTicker === newTicker) || 
+                           (s.name === name) || 
+                           (s.name === newTicker) || 
+                           (existingTicker === name && name !== '');
+                });
+
+                if (existingStock) {
+                    // 👉 發現重複標的，啟動加權平均成本綜合計算
+                    const oldTotalCost = existingStock.shares * existingStock.costPrice;
+                    const newTotalCost = shares * costPrice;
+                    const totalShares = existingStock.shares + shares;
+                    const newAverageCost = (oldTotalCost + newTotalCost) / totalShares;
+
+                    existingStock.shares = totalShares;
+                    existingStock.costPrice = parseFloat(newAverageCost.toFixed(4));
+                    existingStock.price = costPrice; 
+                    
+                    // 趁合併的時候，自動幫舊資料補齊正確的公司名稱與 API 代號
+                    if (!existingStock.apiTicker && ticker) existingStock.apiTicker = ticker;
+                    if (name && name !== ticker) existingStock.name = name;
+
+                    calcStockData(existingStock, rate);
+                } else {
+                    // 👉 全新部位新增
+                    const newStock = {
+                        id: Date.now() + i,
+                        name: name,
+                        apiTicker: ticker !== name ? ticker : '',
+                        assetType: '現股',
+                        market: market,
+                        status: '一般',
+                        shares: shares,
+                        costPrice: costPrice,
+                        price: costPrice,
+                        multiplier: 1,
+                        margin: 0
+                    };
+                    calcStockData(newStock, rate);
+                    portfolio.push(newStock);
+                }
+                importedCount++;
             }
 
-            if (imported === 0) { alert('請至少勾選一筆資料！'); return; }
+            if (importedCount === 0) {
+                alert('請至少勾選一筆資料！');
+                return;
+            }
 
             saveData();
             updateUI();
             closeOcrModal();
-
-            if (confirm(`✅ 已匯入 ${imported} 筆持股！\n\n是否立即一鍵更新現價？`)) {
-                refreshAllPrices(false);
-            }
+            document.getElementById('ocrFileInput').value = '';
+            
+            const doUpdate = confirm(`✅ 成功匯入並合併 ${importedCount} 筆持股！\n\n是否立即自動抓取現價？`);
+            if (doUpdate) refreshAllPrices(false);
         }
 
         window.onload = initApp;
