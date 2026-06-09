@@ -1323,20 +1323,20 @@
 
 
 
-        // iOS 圓餅圖 tooltip：點擊後 2 秒自動消失，只在圖上 click 才觸發，不影響效能
+        // iOS 圓餅圖 tooltip：點圖內 → 顯示，點圖外 → 立即消失（與淨值曲線相同邏輯）
         if (isTouchDevice) {
             const _pieIds = ['pieChartTotal', 'pieChartTW', 'pieChartUS'];
-            let _dismissTimer = null;
-            _pieIds.forEach(function(id) {
-                document.getElementById(id).addEventListener('click', function() {
-                    clearTimeout(_dismissTimer);
-                    _dismissTimer = setTimeout(function() {
-                        _pieIds.forEach(function(cid) {
-                            var cel = document.getElementById(cid);
-                            if (cel) cel.querySelectorAll('g.hovertext').forEach(function(h) { h.remove(); });
-                        });
-                    }, 2000);
+            document.addEventListener('click', function(e) {
+                const onPie = _pieIds.some(function(id) {
+                    var el = document.getElementById(id);
+                    return el && el.contains(e.target);
                 });
+                if (!onPie) {
+                    _pieIds.forEach(function(id) {
+                        var el = document.getElementById(id);
+                        if (el) el.querySelectorAll('g.hovertext').forEach(function(h) { h.remove(); });
+                    });
+                }
             });
         }
 
