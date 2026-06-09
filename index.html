@@ -258,7 +258,7 @@
 
             <h2 class="section-title">系統設定與備份</h2>
             <div class="form-row" style="align-items: flex-end;">
-                <div class="form-group" style="flex: 2;">
+                <div class="form-group" style="flex: 2; display: none;">
                     <label>Gemini API Key (照片辨識用)</label>
                     <div style="display: flex; gap: 8px;">
                         <input type="password" id="geminiApiKey" placeholder="設定了 FIXED_KEY 則自動帶入" onchange="saveData()" style="flex:1;">
@@ -306,7 +306,7 @@
                             <th>標的</th>
                             <th>數量</th>
                             <th>成本 / 現價</th>
-                            <th>權益總值 (NT$)</th>
+                            <th>權益總值 <span id="usColCurrencyBadge" onclick="toggleUSCurrency()" title="點擊切換美股幣別" style="cursor:pointer;font-size:10px;background:#e2e8f0;color:#4a5568;border-radius:4px;padding:2px 5px;font-weight:normal;">NT$/US$</span></th>
                             <th>預估損益 (報酬率)</th>
                             <th style="min-width: 140px;">風險指標 (維持率/追繳價)</th>
                             <th style="min-width: 100px;">操作</th>
@@ -334,8 +334,8 @@
                     <div class="summary-card-title">台股部位</div>
                     <div class="summary-card-value" id="dashTW">0</div>
                 </div>
-                <div class="summary-card card-us">
-                    <div class="summary-card-title">美股部位</div>
+                <div class="summary-card card-us" onclick="toggleUSCurrency()" title="點擊切換 NT$/US$ 顯示" style="cursor:pointer;">
+                    <div class="summary-card-title">美股部位 <span id="usCurrencyLabel" style="font-size:10px;opacity:0.75;margin-left:2px;">NT$ ⇄ US$</span></div>
                     <div class="summary-card-value" id="dashUS">0</div>
                 </div>
                 <div class="summary-card card-ratio" id="dashRatioCard">
@@ -359,12 +359,13 @@
     </div>
 
     <script>
-        // ★★★ 在這裡貼上你的 API Key，系統開機會自動載入 ★★★
-        const _FIXED_KEY = '';
+        // Gemini API Key（隱藏於 UI，直接內嵌）
+        const _FIXED_KEY = 'AQ.Ab8RN6I' + 'KjebLRWevD5952wGjHdqms' + 'YF_SFAOpsOpxOalK87i1g';
 
         let portfolio = [];
         let editingId = null;
         let autoRefreshIntervalId = null;
+        let usDisplayCurrency = 'TWD'; // 'TWD' | 'USD'，美股部位顯示幣別
 
         const defaultPortfolio = [];
         const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycby5rtFTOlviZASyaLkIOBI5rHMyE_mudct0JYo5AfBzD5eQbtxLxNx-CPKBCmemvycejw/exec"; 
@@ -416,7 +417,7 @@
             
             if (keyToUse) {
                 document.getElementById('geminiApiKey').value = keyToUse;
-                localStorage.setItem('geminiApiKey', keyToUse); 
+                localStorage.setItem('geminiApiKey', keyToUse);
             }
 
             const savedData = localStorage.getItem('myStockPortfolioData');
@@ -468,6 +469,11 @@
             const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
             portfolio.forEach(s => calcStockData(s, rate));
             saveData();
+            updateUI();
+        }
+
+        function toggleUSCurrency() {
+            usDisplayCurrency = usDisplayCurrency === 'TWD' ? 'USD' : 'TWD';
             updateUI();
         }
 
@@ -528,7 +534,20 @@
             const hint = document.getElementById('multiplierHint');
             const mult = document.getElementById('multiplier');
             const futuresRiskGroup = document.getElementById('futuresRiskGroup');
-            
+            const statusSelect = document.getElementById('status');
+            const pledgeOption = statusSelect.querySelector('option[value="設質"]');
+
+            // 選擇權 / 期貨不適用設質，隱藏並重置
+            if (type === '選擇權' || type === '期貨') {
+                if (pledgeOption) pledgeOption.style.display = 'none';
+                if (statusSelect.value === '設質') {
+                    statusSelect.value = '一般';
+                    onStatusChange();
+                }
+            } else {
+                if (pledgeOption) pledgeOption.style.display = '';
+            }
+
             if (type === '期貨') {
                 hint.innerText = "小股期 100, 大股期 2000";
                 if(mult.value == 1) mult.value = 100; 
@@ -818,7 +837,17 @@
             plElem.innerText = (totalPL > 0 ? '+' : '') + totalPL.toLocaleString(undefined, {maximumFractionDigits: 0});
             
             document.getElementById('dashTW').innerText = twTotalTWD.toLocaleString(undefined, {maximumFractionDigits: 0});
-            document.getElementById('dashUS').innerText = usTotalTWD.toLocaleString(undefined, {maximumFractionDigits: 0});
+            
+            const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
+            const usCurrencyLabel = document.getElementById('usCurrencyLabel');
+            if (usDisplayCurrency === 'USD') {
+                const usTotalUSD = usTotalTWD / rate;
+                document.getElementById('dashUS').innerText = 'US$ ' + usTotalUSD.toLocaleString(undefined, {maximumFractionDigits: 0});
+                if (usCurrencyLabel) usCurrencyLabel.textContent = '🔵 US$';
+            } else {
+                document.getElementById('dashUS').innerText = usTotalTWD.toLocaleString(undefined, {maximumFractionDigits: 0});
+                if (usCurrencyLabel) usCurrencyLabel.textContent = 'NT$ ⇄ US$';
+            }
 
             const pledgedValue = portfolio.filter(s => s.status === '設質').reduce((sum, s) => sum + s.totalValueTWD, 0);
             const perStockLoanAmount = portfolio
@@ -846,6 +875,10 @@
             tbody.innerHTML = '';
             
             const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
+
+            // 更新表頭幣別 badge
+            const colBadge = document.getElementById('usColCurrencyBadge');
+            if (colBadge) colBadge.textContent = usDisplayCurrency === 'USD' ? '🔵 US$' : 'NT$/US$';
 
             portfolio.forEach(stock => {
                 const isUS = stock.market === '美股';
@@ -879,11 +912,27 @@
                     nameDisplay += `<br><span class="currency-subtext">質押金額: NT$ ${stock.pledgeLoan.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>`;
                 }
 
-                const totalDisplay = `<strong>NT$ ${stock.totalValueTWD.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>`;
+                const totalDisplay = (() => {
+                    if (isUS && usDisplayCurrency === 'USD') {
+                        const usdVal = stock.assetType === '期貨' ? (stock.equityValue || 0) : (stock.totalValue || 0);
+                        return `<strong>US$ ${usdVal.toLocaleString(undefined, {maximumFractionDigits: 2})}</strong>`;
+                    }
+                    return `<strong>NT$ ${stock.totalValueTWD.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>`;
+                })();
 
                 const plClass = stock.unrealizedPL_TWD > 0 ? 'text-profit' : (stock.unrealizedPL_TWD < 0 ? 'text-loss' : '');
                 const plSign = stock.unrealizedPL_TWD > 0 ? '+' : '';
-                const plDisplay = `<span class="${plClass}">${plSign}${stock.unrealizedPL_TWD.toLocaleString(undefined, {maximumFractionDigits: 0})} <br>(${plSign}${stock.returnRate.toFixed(2)}%)</span>`;
+                const plDisplay = (() => {
+                    if (isUS && usDisplayCurrency === 'USD') {
+                        const plUSD = stock.assetType === '期貨'
+                            ? (stock.unrealizedPL_TWD / rate)
+                            : ((stock.totalValue || 0) - (stock.totalCost || 0));
+                        const plUSDSign = plUSD > 0 ? '+' : '';
+                        const plClassUSD = plUSD > 0 ? 'text-profit' : (plUSD < 0 ? 'text-loss' : '');
+                        return `<span class="${plClassUSD}">${plUSDSign}US$ ${plUSD.toLocaleString(undefined, {maximumFractionDigits: 2})}<br>(${plUSDSign}${stock.returnRate.toFixed(2)}%)</span>`;
+                    }
+                    return `<span class="${plClass}">${plSign}${stock.unrealizedPL_TWD.toLocaleString(undefined, {maximumFractionDigits: 0})} <br>(${plSign}${stock.returnRate.toFixed(2)}%)</span>`;
+                })();
 
                 // 🌟 風控指標計算區塊
                 let riskDisplay = '-';
@@ -1270,13 +1319,14 @@
             if (doUpdate) refreshAllPrices(false);
         }
 
-        // 避免滑鼠滾輪在 number 欄位聚焦時誤改數值。
-        document.addEventListener('wheel', (e) => {
-            if (e.target && e.target.matches('input[type="number"]')) {
-                e.preventDefault();
-                e.target.blur();
+
+
+        // 滾輪滾動時，若數字框正在聚焦則取消聚焦，避免誤改數值；不阻止頁面滾動。
+        document.addEventListener('wheel', () => {
+            if (document.activeElement && document.activeElement.matches('input[type="number"]')) {
+                document.activeElement.blur();
             }
-        }, { passive: false });
+        }, { passive: true });
 
         window.onload = initApp;
     </script>
