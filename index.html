@@ -1321,6 +1321,36 @@
 
 
 
+        // iOS 圓餅圖 tooltip 修正：無 mouseleave，第二次觸碰時強制清除
+        if ('ontouchstart' in window) {
+            const pieIds = ['pieChartTotal', 'pieChartTW', 'pieChartUS'];
+            let pieHovered = false;
+
+            document.addEventListener('touchstart', function(e) {
+                const onPie = pieIds.some(id => {
+                    const el = document.getElementById(id);
+                    return el && el.contains(e.target);
+                });
+
+                if (pieHovered) {
+                    pieIds.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el && el.data && el.data.length) {
+                            try {
+                                Plotly.relayout(el, { hovermode: false });
+                                setTimeout(() => {
+                                    try { Plotly.relayout(el, { hovermode: 'closest' }); } catch(_) {}
+                                }, 60);
+                            } catch(_) {}
+                        }
+                    });
+                    pieHovered = onPie; // 若仍在圖上，準備追蹤下次
+                } else if (onPie) {
+                    pieHovered = true;
+                }
+            }, { passive: true });
+        }
+
         // 滾輪滾動時，若數字框正在聚焦則取消聚焦，避免誤改數值；不阻止頁面滾動。
         document.addEventListener('wheel', () => {
             if (document.activeElement && document.activeElement.matches('input[type="number"]')) {
