@@ -1003,6 +1003,8 @@
             });
         }
 
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
         function updateChart() {
             if (portfolio.length === 0) {
                 Plotly.purge('pieChartTotal');
@@ -1042,7 +1044,8 @@
             Plotly.newPlot('pieChartTotal', [{
                 values: totalData.values, labels: totalData.labels, text: totalData.customTexts,
                 type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'radial', 
-                hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
+                hoverinfo: isTouchDevice ? 'skip' : undefined,
+                hovertemplate: isTouchDevice ? undefined : '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
                 hole: 0.55, marker: { line: { color: '#ffffff', width: 2 } }
             }], getLayout('全部資產總和分佈', totalData.totalValueSum, true), {responsive: true, displayModeBar: false});
 
@@ -1052,7 +1055,8 @@
                 Plotly.newPlot('pieChartTW', [{
                     values: twData.values, labels: twData.labels, text: twData.customTexts,
                     type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'radial',
-                    hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
+                    hoverinfo: isTouchDevice ? 'skip' : undefined,
+                    hovertemplate: isTouchDevice ? undefined : '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
                     hole: 0.55, marker: { line: { color: '#ffffff', width: 1 } }
                 }], getLayout('純台股部位', twData.totalValueSum, false), {responsive: true, displayModeBar: false});
             } else { Plotly.purge('pieChartTW'); }
@@ -1063,7 +1067,8 @@
                 Plotly.newPlot('pieChartUS', [{
                     values: usData.values, labels: usData.labels, text: usData.customTexts,
                     type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'radial',
-                    hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
+                    hoverinfo: isTouchDevice ? 'skip' : undefined,
+                    hovertemplate: isTouchDevice ? undefined : '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
                     hole: 0.55, marker: { line: { color: '#ffffff', width: 1 } }
                 }], getLayout('純美股部位', usData.totalValueSum, false), {responsive: true, displayModeBar: false});
             } else { Plotly.purge('pieChartUS'); }
@@ -1321,32 +1326,7 @@
 
 
 
-        // iOS 圓餅圖 tooltip 修正：直接清除 hover SVG 節點
-        // 點圖外 → 立即消失；點圖內 → 2.5 秒後自動消失
-        if ('ontouchstart' in window) {
-            const pieIds = ['pieChartTotal', 'pieChartTW', 'pieChartUS'];
-            let hoverTimer = null;
-
-            function clearAllHovers() {
-                pieIds.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.querySelectorAll('.hoverlayer').forEach(h => { h.innerHTML = ''; });
-                });
-            }
-
-            document.addEventListener('touchend', function(e) {
-                const onPie = pieIds.some(id => {
-                    const el = document.getElementById(id);
-                    return el && el.contains(e.target);
-                });
-                clearTimeout(hoverTimer);
-                if (onPie) {
-                    hoverTimer = setTimeout(clearAllHovers, 2500);
-                } else {
-                    clearAllHovers();
-                }
-            }, { passive: true });
-        }
+        // 觸控裝置的圓餅圖 hover 由 hoverinfo:'skip' 處理，不需要額外 listener
 
         // 滾輪滾動時，若數字框正在聚焦則取消聚焦，避免誤改數值；不阻止頁面滾動。
         document.addEventListener('wheel', () => {
