@@ -1028,35 +1028,37 @@
                 return { labels, values, customTexts, totalValueSum };
             };
 
-            const getLayout = (titleText, totalSumText, isMain) => ({
+            const getLayout = (titleText) => ({
                 title: { text: titleText, font: { size: 16, color: '#2d3748' } },
-                margin: { t: 40, b: 20, l: 10, r: 10 }, 
-                showlegend: false,
-                annotations: [{
-                    font: { size: isMain ? 16 : 12, color: '#2b6cb0', weight: 'bold' },
-                    showarrow: false,
-                    text: `權益<br>NT$ ${(totalSumText / 10000).toLocaleString(undefined, {maximumFractionDigits:0})}萬`,
-                    x: 0.5, y: 0.5
-                }]
+                margin: { t: 40, b: 20, l: 10, r: 10 },
+                showlegend: false
+            });
+
+            const centerTitle = (totalSumText, isMain) => ({
+                text: `權益<br>NT$ ${(totalSumText / 10000).toLocaleString(undefined, {maximumFractionDigits:0})}萬`,
+                font: { size: isMain ? 15 : 12, color: '#2b6cb0' },
+                position: 'middle center'
             });
 
             const totalData = getChartData(portfolio);
             Plotly.newPlot('pieChartTotal', [{
                 values: totalData.values, labels: totalData.labels, text: totalData.customTexts,
-                type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'radial', 
+                type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'horizontal',
                 hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
-                hole: 0.55, marker: { line: { color: '#ffffff', width: 2 } }
-            }], getLayout('全部資產總和分佈', totalData.totalValueSum, true), {responsive: true, displayModeBar: false});
+                hole: 0.55, marker: { line: { color: '#ffffff', width: 2 } },
+                title: centerTitle(totalData.totalValueSum, true)
+            }], getLayout('全部資產總和分佈'), {responsive: true, displayModeBar: false});
 
             const twPortfolio = portfolio.filter(s => s.market === '台股');
             if (twPortfolio.length > 0) {
                 const twData = getChartData(twPortfolio);
                 Plotly.newPlot('pieChartTW', [{
                     values: twData.values, labels: twData.labels, text: twData.customTexts,
-                    type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'radial',
+                    type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'horizontal',
                     hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
-                    hole: 0.55, marker: { line: { color: '#ffffff', width: 1 } }
-                }], getLayout('純台股部位', twData.totalValueSum, false), {responsive: true, displayModeBar: false});
+                    hole: 0.55, marker: { line: { color: '#ffffff', width: 1 } },
+                    title: centerTitle(twData.totalValueSum, false)
+                }], getLayout('純台股部位'), {responsive: true, displayModeBar: false});
             } else { Plotly.purge('pieChartTW'); }
 
             const usPortfolio = portfolio.filter(s => s.market === '美股');
@@ -1064,10 +1066,11 @@
                 const usData = getChartData(usPortfolio);
                 Plotly.newPlot('pieChartUS', [{
                     values: usData.values, labels: usData.labels, text: usData.customTexts,
-                    type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'radial',
+                    type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'horizontal',
                     hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
-                    hole: 0.55, marker: { line: { color: '#ffffff', width: 1 } }
-                }], getLayout('純美股部位', usData.totalValueSum, false), {responsive: true, displayModeBar: false});
+                    hole: 0.55, marker: { line: { color: '#ffffff', width: 1 } },
+                    title: centerTitle(usData.totalValueSum, false)
+                }], getLayout('純美股部位'), {responsive: true, displayModeBar: false});
             } else { Plotly.purge('pieChartUS'); }
 
             const histData = recordDailyEquity(totalData.totalValueSum);
