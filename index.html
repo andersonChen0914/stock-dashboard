@@ -531,38 +531,35 @@
         }
 
         function onAssetTypeChange() {
-            const type = document.getElementById('assetType').value;
-            const hint = document.getElementById('multiplierHint');
-            const mult = document.getElementById('multiplier');
-            const futuresRiskGroup = document.getElementById('futuresRiskGroup');
-            const statusSelect = document.getElementById('status');
-            const pledgeOption = statusSelect.querySelector('option[value="設質"]');
+   			 const type = document.getElementById('assetType').value;
+   			 const hint = document.getElementById('multiplierHint');
+ 			 const mult = document.getElementById('multiplier');
+   			 const futuresRiskGroup = document.getElementById('futuresRiskGroup');
+    			const statusSelect = document.getElementById('status');
 
-            // 選擇權 / 期貨不適用設質，隱藏並重置
-            if (type === '選擇權' || type === '期貨') {
-                if (pledgeOption) pledgeOption.style.display = 'none';
-                if (statusSelect.value === '設質') {
-                    statusSelect.value = '一般';
-                    onStatusChange();
-                }
-            } else {
-                if (pledgeOption) pledgeOption.style.display = '';
-            }
+   			 // 【iOS 修正】不使用 style 隱藏，而是直接重寫選單內容，徹底根除 iOS 原生滾輪的殘留問題
+   			 if (type === '選擇權' || type === '期貨') {
+       				 statusSelect.innerHTML = '<option value="一般">一般部位</option>';
+       				 statusSelect.value = '一般';
+       				 onStatusChange(); // 觸發連動，把質押輸入框收起來
+   			 } else {
+        			statusSelect.innerHTML = '<option value="一般">一般部位</option><option value="設質">已設質擔保</option>';
+   			 }
 
-            if (type === '期貨') {
-                hint.innerText = "小股期 100, 大股期 2000";
-                if(mult.value == 1) mult.value = 100; 
-                futuresRiskGroup.style.display = 'flex';
-            } else if (type === '選擇權') {
-                hint.innerText = "選擇權常用乘數 100";
-                if(mult.value == 1) mult.value = 100;
-                futuresRiskGroup.style.display = 'none';
-            } else {
-                hint.innerText = "現股請填 1";
-                mult.value = 1;
-                futuresRiskGroup.style.display = 'none';
-            }
-        }
+    			if (type === '期貨') {
+        			hint.innerText = "小股期 100, 大股期 2000";
+       				if(mult.value == 1) mult.value = 100; 
+        			futuresRiskGroup.style.display = 'flex';
+   			 } else if (type === '選擇權') {
+        			hint.innerText = "選擇權常用乘數 100";
+       				if(mult.value == 1) mult.value = 100;
+        			futuresRiskGroup.style.display = 'none';
+    			} else {
+       				 hint.innerText = "現股請填 1";
+       				 mult.value = 1;
+        			futuresRiskGroup.style.display = 'none';
+    			}
+	}
 
         function onStatusChange() {
             const status = document.getElementById('status').value;
