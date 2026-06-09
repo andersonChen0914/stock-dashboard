@@ -1321,32 +1321,29 @@
 
 
 
-        // iOS 圓餅圖 tooltip 修正：無 mouseleave，第二次觸碰時強制清除
+        // iOS 圓餅圖 tooltip 修正：直接清除 hover SVG 節點
+        // 點圖外 → 立即消失；點圖內 → 2.5 秒後自動消失
         if ('ontouchstart' in window) {
             const pieIds = ['pieChartTotal', 'pieChartTW', 'pieChartUS'];
-            let pieHovered = false;
+            let hoverTimer = null;
 
-            document.addEventListener('touchstart', function(e) {
+            function clearAllHovers() {
+                pieIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.querySelectorAll('.hoverlayer').forEach(h => { h.innerHTML = ''; });
+                });
+            }
+
+            document.addEventListener('touchend', function(e) {
                 const onPie = pieIds.some(id => {
                     const el = document.getElementById(id);
                     return el && el.contains(e.target);
                 });
-
-                if (pieHovered) {
-                    pieIds.forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el && el.data && el.data.length) {
-                            try {
-                                Plotly.relayout(el, { hovermode: false });
-                                setTimeout(() => {
-                                    try { Plotly.relayout(el, { hovermode: 'closest' }); } catch(_) {}
-                                }, 60);
-                            } catch(_) {}
-                        }
-                    });
-                    pieHovered = onPie; // 若仍在圖上，準備追蹤下次
-                } else if (onPie) {
-                    pieHovered = true;
+                clearTimeout(hoverTimer);
+                if (onPie) {
+                    hoverTimer = setTimeout(clearAllHovers, 2500);
+                } else {
+                    clearAllHovers();
                 }
             }, { passive: true });
         }
