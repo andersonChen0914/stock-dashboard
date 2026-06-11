@@ -375,6 +375,8 @@
         let editingId = null;
         let autoRefreshIntervalId = null;
         let usDisplayCurrency = 'TWD'; // 'TWD' | 'USD'，美股部位顯示幣別
+        let twseDirectCount = 0;  // 本輪更新中，直連證交所成功的台股檔數
+        let twTotalCount = 0;     // 本輪更新中的台股總檔數
 
         const defaultPortfolio = [];
         const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycby5rtFTOlviZASyaLkIOBI5rHMyE_mudct0JYo5AfBzD5eQbtxLxNx-CPKBCmemvycejw/exec"; 
@@ -409,7 +411,11 @@
             const code = m[1];
             const tries = m[2] ? [m[2].toUpperCase() === 'TWO'] : [false, true]; // 未指定→先上市再上櫃
             for (const isOTC of tries) {
-                try { return await fetchTWSEDirect(code, isOTC); } catch (e) { /* 試下一個 */ }
+                try {
+                    const p = await fetchTWSEDirect(code, isOTC);
+                    twseDirectCount++;
+                    return p;
+                } catch (e) { /* 試下一個 */ }
             }
             return null;
         }
@@ -710,6 +716,8 @@
                 btn.disabled = true;
             }
             btn.innerText = "⏳ 併發抓取報價中..."; 
+            twseDirectCount = 0;
+            twTotalCount = portfolio.filter(s => s.market === '台股').length;
 
             const ratePromise = (async () => {
                 try {
@@ -765,7 +773,13 @@
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
                             now.getMinutes().toString().padStart(2, '0') + ':' + 
                             now.getSeconds().toString().padStart(2, '0');
-            document.getElementById('lastUpdateText').innerText = `最後更新: ${timeStr}`;
+            let sourceLabel = '';
+            if (twTotalCount > 0) {
+                sourceLabel = twseDirectCount > 0
+                    ? ` ｜台股: 證交所即時 (${twseDirectCount}/${twTotalCount})`
+                    : ' ｜台股: Yahoo備援(延遲)';
+            }
+            document.getElementById('lastUpdateText').innerText = `最後更新: ${timeStr}${sourceLabel}`;
             if (isAuto) {
                 btn.innerText = `✅ 已閃電更新 (${timeStr})`;
             } else {
