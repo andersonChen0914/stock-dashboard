@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <link rel="manifest" href="./manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
@@ -131,6 +130,15 @@
             @media (min-width: 500px) { .sub-chart { min-width: 48%; } }
         }
     </style>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2b6cb0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="資產儀表板">
+    <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
 
@@ -371,6 +379,41 @@
         const defaultPortfolio = [];
         const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycby5rtFTOlviZASyaLkIOBI5rHMyE_mudct0JYo5AfBzD5eQbtxLxNx-CPKBCmemvycejw/exec"; 
 
+        // ===== 台股前端直連證交所（瀏覽器在台灣，IP 不被擋）=====
+        // 成功 → 秒級即時價；失敗（CORS 等）→ 自動退回 GAS/Yahoo
+        async function fetchTWSEDirect(code, isOTC) {
+            const prefix = isOTC ? 'otc' : 'tse';
+            const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${prefix}_${code}.tw&json=1&delay=0&_=${Date.now()}`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+            if (!data.msgArray || data.msgArray.length === 0) throw new Error('empty');
+            const s = data.msgArray[0];
+            let price = parseFloat(s.z);
+            if (!price || isNaN(price)) {
+                const bid = parseFloat((s.b || '').split('_')[0]);
+                const ask = parseFloat((s.a || '').split('_')[0]);
+                if (bid > 0 && ask > 0) price = (bid + ask) / 2;
+                else if (bid > 0) price = bid;
+                else if (ask > 0) price = ask;
+            }
+            if (!price || isNaN(price)) price = parseFloat(s.y);
+            if (!price || isNaN(price)) throw new Error('no price');
+            return price;
+        }
+
+        // 解析台股代號並嘗試直連（"2330"、"2330.TW"、"5483.TWO" 皆可）
+        async function getTWPriceDirect(rawTicker) {
+            const m = rawTicker.match(/^(\d{4,6}[A-Za-z]?)(?:\.(TW|TWO))?$/i);
+            if (!m) return null;
+            const code = m[1];
+            const tries = m[2] ? [m[2].toUpperCase() === 'TWO'] : [false, true]; // 未指定→先上市再上櫃
+            for (const isOTC of tries) {
+                try { return await fetchTWSEDirect(code, isOTC); } catch (e) { /* 試下一個 */ }
+            }
+            return null;
+        }
+
         function calcStockData(s, rate) {
             if (s.costPrice === undefined) s.costPrice = s.price;
             if (s.margin === undefined) s.margin = 0;
@@ -463,7 +506,7 @@
             localStorage.setItem('myStockPortfolioData', JSON.stringify(portfolio));
             localStorage.setItem('myPortfolioAutoRefresh', document.getElementById('autoRefresh').value);
             localStorage.setItem('myPortfolioExchangeRate', document.getElementById('exchangeRate').value);
-            localStorage.setItem('myGeminiApiKey', document.getElementById('geminiApiKey').value.trim());
+            localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value.trim());
         }
 
         function recalculateCurrencies() {
@@ -479,7 +522,11 @@
         }
 
         function recordDailyEquity(totalEquity) {
-            let hist = JSON.parse(localStorage.getItem('equityHistoryData'));
+            let hist;
+            try {
+                hist = JSON.parse(localStorage.getItem('equityHistoryData'));
+                if (!Array.isArray(hist)) hist = null;
+            } catch (e) { hist = null; }
             if (!hist || hist.length === 0) {
                 hist = [];
                 for(let i=7; i>=1; i--) {
@@ -510,6 +557,7 @@
             a.href = url;
             a.download = `portfolio_backup_${new Date().toISOString().split('T')[0]}.json`;
             a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
         function importData(event) {
@@ -531,35 +579,38 @@
         }
 
         function onAssetTypeChange() {
-   			 const type = document.getElementById('assetType').value;
-   			 const hint = document.getElementById('multiplierHint');
- 			 const mult = document.getElementById('multiplier');
-   			 const futuresRiskGroup = document.getElementById('futuresRiskGroup');
-    			const statusSelect = document.getElementById('status');
+            const type = document.getElementById('assetType').value;
+            const hint = document.getElementById('multiplierHint');
+            const mult = document.getElementById('multiplier');
+            const futuresRiskGroup = document.getElementById('futuresRiskGroup');
+            const statusSelect = document.getElementById('status');
+            const pledgeOption = statusSelect.querySelector('option[value="設質"]');
 
-   			 // 【iOS 修正】不使用 style 隱藏，而是直接重寫選單內容，徹底根除 iOS 原生滾輪的殘留問題
-   			 if (type === '選擇權' || type === '期貨') {
-       				 statusSelect.innerHTML = '<option value="一般">一般部位</option>';
-       				 statusSelect.value = '一般';
-       				 onStatusChange(); // 觸發連動，把質押輸入框收起來
-   			 } else {
-        			statusSelect.innerHTML = '<option value="一般">一般部位</option><option value="設質">已設質擔保</option>';
-   			 }
+            // 選擇權 / 期貨不適用設質，隱藏並重置
+            if (type === '選擇權' || type === '期貨') {
+                if (pledgeOption) pledgeOption.style.display = 'none';
+                if (statusSelect.value === '設質') {
+                    statusSelect.value = '一般';
+                    onStatusChange();
+                }
+            } else {
+                if (pledgeOption) pledgeOption.style.display = '';
+            }
 
-    			if (type === '期貨') {
-        			hint.innerText = "小股期 100, 大股期 2000";
-       				if(mult.value == 1) mult.value = 100; 
-        			futuresRiskGroup.style.display = 'flex';
-   			 } else if (type === '選擇權') {
-        			hint.innerText = "選擇權常用乘數 100";
-       				if(mult.value == 1) mult.value = 100;
-        			futuresRiskGroup.style.display = 'none';
-    			} else {
-       				 hint.innerText = "現股請填 1";
-       				 mult.value = 1;
-        			futuresRiskGroup.style.display = 'none';
-    			}
-	}
+            if (type === '期貨') {
+                hint.innerText = "小股期 100, 大股期 2000";
+                if(mult.value == 1) mult.value = 100; 
+                futuresRiskGroup.style.display = 'flex';
+            } else if (type === '選擇權') {
+                hint.innerText = "選擇權常用乘數 100";
+                if(mult.value == 1) mult.value = 100;
+                futuresRiskGroup.style.display = 'none';
+            } else {
+                hint.innerText = "現股請填 1";
+                mult.value = 1;
+                futuresRiskGroup.style.display = 'none';
+            }
+        }
 
         function onStatusChange() {
             const status = document.getElementById('status').value;
@@ -598,7 +649,16 @@
             let success = false;
             let currentPrice = 0;
 
-            for (let t of tickersToTry) {
+            // 台股先嘗試前端直連證交所（即時價）
+            if (marketSelect.value === '台股') {
+                const directPrice = await getTWPriceDirect(fetchTarget);
+                if (directPrice !== null) {
+                    currentPrice = directPrice;
+                    success = true;
+                }
+            }
+
+            if (!success) for (let t of tickersToTry) {
                 const url = `${GAS_PROXY_URL}?ticker=${t}`;
                 try {
                     const response = await fetch(url);
@@ -669,7 +729,13 @@
                     ? [ticker + '.TW', ticker + '.TWO'] : [ticker];
 
                 let currentPrice = null;
-                for (let t of tickersToTry) {
+
+                // 台股先嘗試前端直連證交所（即時價），失敗自動退回 GAS
+                if (s.market === '台股') {
+                    currentPrice = await getTWPriceDirect(ticker);
+                }
+
+                if (currentPrice === null) for (let t of tickersToTry) {
                     try {
                         const response = await fetch(`${GAS_PROXY_URL}?ticker=${t}`);
                         const data = await response.json();
@@ -805,6 +871,8 @@
         }
 
         function deleteStock(id) {
+            const stock = portfolio.find(s => s.id === id);
+            if (stock && !confirm(`確定要刪除「${stock.name}」這筆部位嗎？`)) return;
             portfolio = portfolio.filter(stock => stock.id !== id);
             if (editingId === id) {
                 editingId = null;
@@ -1341,6 +1409,23 @@
             });
         }
 
+        // iOS PWA：回到前景時立即更新報價，並重啟自動更新 interval
+        // （iOS 在背景/鎖屏時會暫停 JS，setInterval 不會累積，需手動重觸）
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                if (portfolio.length > 0) refreshAllPrices(true);
+                setupAutoRefresh();
+            }
+        });
+
+        // iOS bfcache 頁面還原時也要更新
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted && portfolio.length > 0) {
+                refreshAllPrices(true);
+                setupAutoRefresh();
+            }
+        });
+
         // 滾輪滾動時，若數字框正在聚焦則取消聚焦，避免誤改數值；不阻止頁面滾動。
         document.addEventListener('wheel', () => {
             if (document.activeElement && document.activeElement.matches('input[type="number"]')) {
@@ -1349,6 +1434,16 @@
         }, { passive: true });
 
         window.onload = initApp;
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('✅ SW 已註冊:', reg.scope))
+                    .catch(err => console.warn('SW 註冊失敗:', err));
+            });
+        }
     </script>
 </body>
 </html>
