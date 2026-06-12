@@ -1,4 +1,4 @@
-const CACHE_NAME = 'asset-dashboard-v2';
+const CACHE_NAME = 'asset-dashboard-v3'; // 版本號 +1，強制清掉舊快取
 const STATIC_ASSETS = [
     './index.html',
     './manifest.json',
@@ -15,7 +15,7 @@ self.addEventListener('install', event => {
     self.skipWaiting();
 });
 
-// 啟動：清除舊快取（v1 → v2 自動清掉）
+// 啟動：清除舊快取（v2 → v3 自動清掉）
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(keys =>
@@ -28,26 +28,24 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = event.request.url;
 
-    // 只快取：同源檔案 + Plotly CDN
-    // 其他所有外部請求（GAS 報價、Gemini、googleusercontent 等）一律不攔截
-    // 讓瀏覽器直接發送，避免快取到舊報價
+    // 只處理：同源檔案 + Plotly CDN
+    // 其他外部請求（GAS 報價、富果 API 等）一律不攔截，交給瀏覽器原生處理
     const isSameOrigin = url.startsWith(self.location.origin);
     const isPlotlyCDN = url.startsWith('https://cdn.plot.ly/');
-
     if (!isSameOrigin && !isPlotlyCDN) {
-        return; // 不攔截，外部請求交給瀏覽器原生處理
+        return;
     }
 
+    // ===== 網路優先（Network First）=====
+    // 有網路：抓最新版，順便更新快取
+    // 斷網／抓失敗：退回快取，PWA 離線仍可用
     event.respondWith(
-        caches.match(event.request).then(cached => {
-            if (cached) return cached;
-            return fetch(event.request).then(response => {
-                if (response && response.status === 200 && response.type !== 'opaque') {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-                }
-                return response;
-            });
-        })
+        fetch(event.request).then(response => {
+            if (response && response.status === 200 && response.type !== 'opaque') {
+                const clone = response.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+            }
+            return response;
+        }).catch(() => caches.match(event.request))
     );
 });
