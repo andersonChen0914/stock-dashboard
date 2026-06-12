@@ -375,130 +375,62 @@
         let editingId = null;
         let autoRefreshIntervalId = null;
         let usDisplayCurrency = 'TWD'; // 'TWD' | 'USD'，美股部位顯示幣別
-        let twseDirectCount = 0;  // 本輪更新中，直連證交所成功的台股檔數
-        let twTotalCount = 0;     // 本輪更新中的台股總檔數
+        let fugleSuccessCount = 0;  // 本輪更新中，富果 API 成功的台股檔數
+        let twTotalCount = 0;       // 本輪更新中的台股總檔數
 
         const defaultPortfolio = [];
-        const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycby5rtFTOlviZASyaLkIOBI5rHMyE_mudct0JYo5AfBzD5eQbtxLxNx-CPKBCmemvycejw/exec"; 
+        const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycby5rtFTOlviZASyaLkIOBI5rHMyE_mudct0JYo5AfBzD5eQbtxLxNx-CPKBCmemvycejw/exec";
+        const FUGLE_API_KEY = 'YzA1MDRkMjYtMmMyMS00NGVmLTk3ZDktNzUwNmE1NGI3NTQ2IDliZTNkMGE4LTI0ZTgtNGYxNy04MmZlLTFmYzJjZWMzM2RmOA=='; // ← 換成你的富果 API Key
 
-        // ===== 台股前端直連證交所（瀏覽器在台灣，IP 不被擋）=====
-// 解析證交所 MIS 回傳的單筆資料
-function parseTWSEQuote(s) {
-    let price = parseFloat(s.z);
-    if (!price || isNaN(price)) {
-        const bid = parseFloat((s.b || '').split('_')[0]);
-        const ask = parseFloat((s.a || '').split('_')[0]);
-        if (bid > 0 && ask > 0) price = (bid + ask) / 2;
-        else if (bid > 0) price = bid;
-        else if (ask > 0) price = ask;
-    }
-    if (!price || isNaN(price)) price = parseFloat(s.y);
-    if (!price || isNaN(price)) throw new Error('no price');
+        // ===== 富果即時行情（取代證交所）=====
+
+// 單檔：呼叫富果 intraday/quote，回傳現價
+async function fetchFugleQuote(code) {
+    const url = `https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${code}`;
+    const resp = await fetch(url, { headers: { 'X-API-KEY': FUGLE_API_KEY } });
+    if (!resp.ok) throw new Error('Fugle HTTP ' + resp.status);
+    const data = await resp.json();
+    // 盤中用 lastPrice，收盤後用 closePrice，再退昨收 previousClose
+    const price = data.lastPrice ?? data.closePrice ?? data.previousClose;
+    if (!price) throw new Error('no price');
     return price;
 }
 
-// 第一層：瀏覽器直連（在台灣且未被 CORS 擋時最快）
-async function fetchTWSEDirect(code, isOTC) {
-    const prefix = isOTC ? 'otc' : 'tse';
-    const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${prefix}_${code}.tw&json=1&delay=0&_=${Date.now()}`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    if (!data.msgArray || data.msgArray.length === 0) throw new Error('empty');
-    return parseTWSEQuote(data.msgArray[0]);
-}
-
-// 第二層：透過 GAS 代理證交所（解決 CORS，仍是即時價）
-async function fetchTWSEViaGAS(code, isOTC) {
-    const prefix = isOTC ? 'otc' : 'tse';
-    const url = `${GAS_PROXY_URL}?twse=${prefix}_${code}.tw`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    if (!data.msgArray || data.msgArray.length === 0) throw new Error('empty');
-    return parseTWSEQuote(data.msgArray[0]);
-}
-
+// 單檔抓價（fetchPrice 按鈕用）
 async function getTWPriceDirect(rawTicker) {
     const m = rawTicker.match(/^(\d{4,6}[A-Za-z]?)(?:\.(TW|TWO))?$/i);
     if (!m) return null;
     const code = m[1];
-    const tries = m[2] ? [m[2].toUpperCase() === 'TWO'] : [false, true];
-    for (const isOTC of tries) {
-        try {
-            const p = await fetchTWSEDirect(code, isOTC);
-            twseDirectCount++;
-            return p;
-        } catch (e) { /* CORS 擋掉，改走 GAS 代理 */ }
-        try {
-            const p = await fetchTWSEViaGAS(code, isOTC);
-            twseDirectCount++;
-            return p;
-        } catch (e) { /* 試下一個市場別 */ }
-    }
-    // ===== 台股批次抓價 =====
-
-// 把一檔台股展開成要查詢的 channel（不確定上市/上櫃就兩個都查，證交所只會回存在的那個）
-function buildTWSEChannels(ticker) {
-    const m = ticker.match(/^(\d{4,6}[A-Za-z]?)(?:\.(TW|TWO))?$/i);
-    if (!m) return [];
-    const code = m[1];
-    if (m[2]) {
-        return [m[2].toUpperCase() === 'TWO' ? `otc_${code}.tw` : `tse_${code}.tw`];
-    }
-    return [`tse_${code}.tw`, `otc_${code}.tw`];
-}
-
-// 批次請求：先直連，CORS 失敗改走 GAS 代理。回傳 msgArray
-async function fetchTWSEBatchRaw(exChString) {
-    // 第一層：直連
     try {
-        const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exChString}&json=1&delay=0&_=${Date.now()}`;
-        const resp = await fetch(url);
-        if (resp.ok) {
-            const data = await resp.json();
-            if (data.msgArray) return data.msgArray;
-        }
-    } catch (e) { /* CORS 擋掉，走 GAS */ }
-    // 第二層：GAS 代理
-    const url2 = `${GAS_PROXY_URL}?twse=${encodeURIComponent(exChString)}`;
-    const resp2 = await fetch(url2);
-    if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
-    const data2 = await resp2.json();
-    return data2.msgArray || [];
-}
-
-// 一次抓回所有台股報價，回傳 Map: 股票代號 → 價格
-async function fetchAllTWPrices(twStocks) {
-    // 收集所有 channel 並去重
-    const channelSet = new Set();
-    twStocks.forEach(s => {
-        const ticker = (s.apiTicker || s.name).toUpperCase();
-        buildTWSEChannels(ticker).forEach(ch => channelSet.add(ch));
-    });
-    const channels = [...channelSet];
-    if (channels.length === 0) return new Map();
-
-    // 每 20 個 channel 切一包，避免單一請求過長
-    const chunks = [];
-    for (let i = 0; i < channels.length; i += 20) {
-        chunks.push(channels.slice(i, i + 20));
+        const p = await fetchFugleQuote(code);
+        fugleSuccessCount++;
+        return p;
+    } catch (e) {
+        console.warn('富果 API 失敗', code, e);
+        return null;
     }
-
-    const priceMap = new Map(); // code → price
-    const results = await Promise.all(
-        chunks.map(chunk => fetchTWSEBatchRaw(chunk.join('|')).catch(() => []))
-    );
-    results.flat().forEach(q => {
-        if (!q || !q.c) return;
-        try {
-            const price = parseTWSEQuote(q);
-            priceMap.set(q.c, price); // q.c 是純代號，如 "2330"
-        } catch (e) { /* 該檔沒價，留給 Yahoo 備援 */ }
-    });
-    return priceMap;
 }
-    return null;
+
+// 批次抓回所有台股報價，回傳 Map: 股票代號 → 價格
+async function fetchAllTWPrices(twStocks) {
+    fugleSuccessCount = 0;
+    const results = await Promise.all(twStocks.map(async s => {
+        const ticker = (s.apiTicker || s.name).toUpperCase();
+        const m = ticker.match(/^(\d{4,6}[A-Za-z]?)(?:\.(TW|TWO))?$/i);
+        if (!m) return null;
+        const code = m[1];
+        try {
+            const price = await fetchFugleQuote(code);
+            fugleSuccessCount++;
+            return { code, price };
+        } catch (e) {
+            console.warn('富果批次失敗', code, e);
+            return { code, price: null };
+        }
+    }));
+    const priceMap = new Map();
+    results.forEach(r => { if (r && r.price !== null) priceMap.set(r.code, r.price); });
+    return priceMap;
 }
 
         function calcStockData(s, rate) {
@@ -736,15 +668,16 @@ async function fetchAllTWPrices(twStocks) {
             let success = false;
             let currentPrice = 0;
 
-            // 台股先嘗試前端直連證交所（即時價）
+            // 台股：直接走富果 API
             if (marketSelect.value === '台股') {
-                const directPrice = await getTWPriceDirect(fetchTarget);
-                if (directPrice !== null) {
-                    currentPrice = directPrice;
+                const fuglePrice = await getTWPriceDirect(fetchTarget);
+                if (fuglePrice !== null) {
+                    currentPrice = fuglePrice;
                     success = true;
                 }
             }
 
+            // 美股 / 富果抓不到的備援：走 GAS Yahoo
             if (!success) for (let t of tickersToTry) {
                 const url = `${GAS_PROXY_URL}?ticker=${t}`;
                 try {
@@ -797,10 +730,10 @@ async function refreshAllPrices(isAuto = false) {
         btn.disabled = true;
     }
     btn.innerText = "⏳ 併發抓取報價中...";
-    twseDirectCount = 0;
+    fugleSuccessCount = 0;
     twTotalCount = portfolio.filter(s => s.market === '台股').length;
 
-    // 匯率（照舊）
+    // 匯率（走 GAS Yahoo）
     const ratePromise = (async () => {
         try {
             const rateResponse = await fetch(`${GAS_PROXY_URL}?ticker=TWD=X`);
@@ -813,51 +746,28 @@ async function refreshAllPrices(isAuto = false) {
         return true;
     })();
 
-    // ===== 台股：一次批次打包 =====
+    // ===== 台股：並發走富果 API =====
     const twStocks = portfolio.filter(s => s.market === '台股');
-    const twBatchPromise = (async () => {
+    const twPromise = (async () => {
         if (twStocks.length === 0) return;
         let priceMap;
         try {
             priceMap = await fetchAllTWPrices(twStocks);
         } catch (e) {
-            console.error("台股批次抓取失敗", e);
+            console.error("台股富果批次失敗", e);
             priceMap = new Map();
         }
-
-        // 回填價格；沒拿到的逐檔退 Yahoo
-        const yahooFallbacks = [];
         twStocks.forEach(s => {
             const ticker = (s.apiTicker || s.name).toUpperCase();
             const m = ticker.match(/^(\d{4,6}[A-Za-z]?)(?:\.(TW|TWO))?$/i);
             const code = m ? m[1] : null;
             if (code && priceMap.has(code)) {
                 s.price = priceMap.get(code);
-                twseDirectCount++;
-            } else {
-                yahooFallbacks.push(s);
             }
         });
-
-        // Yahoo 備援（延遲價，僅限批次沒抓到的）
-        await Promise.all(yahooFallbacks.map(async (s) => {
-            let ticker = s.apiTicker || s.name;
-            let tickersToTry = /^\d{4,6}[A-Za-z]?$/.test(ticker)
-                ? [ticker + '.TW', ticker + '.TWO'] : [ticker];
-            for (let t of tickersToTry) {
-                try {
-                    const response = await fetch(`${GAS_PROXY_URL}?ticker=${t}`);
-                    const data = await response.json();
-                    if (data.chart && !data.chart.error && data.chart.result) {
-                        s.price = data.chart.result[0].meta.regularMarketPrice;
-                        return;
-                    }
-                } catch (e) { console.error("Error fetching", t, e); }
-            }
-        }));
     })();
 
-    // ===== 美股：照舊各自併發走 Yahoo =====
+    // ===== 美股：走 GAS Yahoo =====
     const usPromises = portfolio.filter(s => s.market !== '台股').map(async (s) => {
         let ticker = s.apiTicker || s.name;
         try {
@@ -869,7 +779,7 @@ async function refreshAllPrices(isAuto = false) {
         } catch (e) { console.error("Error fetching", ticker, e); }
     });
 
-    await Promise.all([ratePromise, twBatchPromise, ...usPromises]);
+    await Promise.all([ratePromise, twPromise, ...usPromises]);
 
     const finalRate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
     portfolio.forEach(s => calcStockData(s, finalRate));
@@ -883,9 +793,9 @@ async function refreshAllPrices(isAuto = false) {
                     now.getSeconds().toString().padStart(2, '0');
     let sourceLabel = '';
     if (twTotalCount > 0) {
-        sourceLabel = twseDirectCount > 0
-            ? ` ｜台股: 證交所即時 (${twseDirectCount}/${twTotalCount})`
-            : ' ｜台股: Yahoo備援(延遲)';
+        sourceLabel = fugleSuccessCount > 0
+            ? ` ｜台股: 富果即時 (${fugleSuccessCount}/${twTotalCount})`
+            : ' ｜台股: 抓取失敗';
     }
     document.getElementById('lastUpdateText').innerText = `最後更新: ${timeStr}${sourceLabel}`;
     if (isAuto) {
