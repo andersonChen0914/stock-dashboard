@@ -48,6 +48,12 @@
         .btn-import:hover { background-color: #4a5568; }
         
         .hint { font-size: 12px; color: #718096; margin-top: 4px; }
+
+        /* 拖曳排序 */
+        .drag-handle { cursor: grab; color: #cbd5e0; font-size: 18px; padding: 0 6px; user-select: none; touch-action: none; }
+        .drag-handle:active { cursor: grabbing; }
+        tr.dragging { opacity: 0.4; background: #ebf8ff; }
+        tr.drag-over { border-top: 3px solid var(--primary); }
         .currency-subtext { font-size: 11px; color: #718096; margin-top: 2px; }
         .text-profit { color: #e53e3e; font-weight: bold; }
         .text-loss { color: #38a169; font-weight: bold; }
@@ -109,6 +115,18 @@
         #ocrResultTable input:focus { border-color: var(--success); outline: none; }
         #ocrResultTable select { padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 12px; width: 100%; background: white; }
         .ocr-row-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--success); }
+        /* 買入/賣出 modal */
+        #tradeOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center; }
+        #tradeOverlay.active { display:flex; }
+        #tradeBox { background:#fff; border-radius:14px; padding:26px 24px 20px; width:320px; max-width:92vw; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18); }
+        #tradeBox h3 { margin:0 0 4px; font-size:1.1rem; }
+        #tradeBox .trade-sub { font-size:12px; color:#718096; margin-bottom:16px; }
+        .btn-trade-buy  { background:var(--danger);  color:white; flex:1; }
+        .btn-trade-sell { background:var(--success); color:white; flex:1; }
+        .btn-trade-buy:hover  { opacity:0.85; }
+        .btn-trade-sell:hover { opacity:0.85; }
+        #modeAddLabel.active { border-color: var(--success); background: #f0fff4; }
+        #modeOverwriteLabel.active { border-color: var(--danger); background: #fff5f5; }
         .btn-ocr-confirm { background: linear-gradient(135deg, var(--success), #276749); color: white; border: none; border-radius: 8px; padding: 11px 20px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 14px; }
         .btn-ocr-confirm:hover { opacity: 0.88; }
         
@@ -148,10 +166,44 @@
         <div id="ocrBox">
             <button id="ocrCloseBtn" onclick="closeOcrModal()">✕</button>
             <h3>🤖 Gemini AI 辨識結果</h3>
-            <p class="ocr-sub">確認後可直接修改各欄位，若有相同標的將「自動加總數量並計算平均成本」</p>
+            <p class="ocr-sub">確認後可直接修改各欄位再匯入。</p>
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+                <label style="flex:1;display:flex;align-items:center;gap:6px;padding:9px 12px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:0.15s;" id="modeAddLabel">
+                    <input type="radio" name="ocrImportMode" value="add" checked onchange="updateOcrModeLabel()" style="accent-color:var(--success);width:15px;height:15px;">
+                    <span>➕ 與現有資料合併<br><span style="font-weight:400;font-size:11px;color:#718096;">同標的自動攤平加權</span></span>
+                </label>
+                <label style="flex:1;display:flex;align-items:center;gap:6px;padding:9px 12px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:0.15s;" id="modeOverwriteLabel">
+                    <input type="radio" name="ocrImportMode" value="overwrite" onchange="updateOcrModeLabel()" style="accent-color:var(--danger);width:15px;height:15px;">
+                    <span>🗑️ 覆蓋現有資料<br><span style="font-weight:400;font-size:11px;color:#718096;">清空後重新匯入</span></span>
+                </label>
+            </div>
             <img id="ocrPreviewImg" class="ocr-preview-img" src="" alt="">
             <div id="ocrBody">
                 <div class="ocr-status"><span class="ocr-spinner"></span>AI 分析中，請稍候...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 買入/賣出 modal -->
+    <div id="tradeOverlay">
+        <div id="tradeBox">
+            <button onclick="closeTradeModal()" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;color:#a0aec0;cursor:pointer;padding:0;line-height:1;">✕</button>
+            <h3 id="tradeTitle">📈 買入</h3>
+            <p class="trade-sub" id="tradeSubtitle"></p>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:#4a5568;">數量（股/口）</label>
+                    <input type="number" id="tradeShares" placeholder="輸入數量" min="0" step="any" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:4px;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:#4a5568;">成交均價</label>
+                    <input type="number" id="tradePrice" placeholder="輸入價格" min="0" step="any" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:4px;box-sizing:border-box;">
+                </div>
+                <div id="tradeSummary" style="font-size:12px;color:#718096;min-height:18px;"></div>
+                <div style="display:flex;gap:8px;margin-top:4px;">
+                    <button class="btn-trade-buy"  id="tradeConfirmBtn" onclick="confirmTrade()">確認</button>
+                    <button onclick="closeTradeModal()" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;padding:10px;font-size:14px;font-weight:bold;cursor:pointer;">取消</button>
+                </div>
             </div>
         </div>
     </div>
@@ -312,6 +364,7 @@
                 <table id="stockTable">
                     <thead>
                         <tr>
+                            <th style="width:32px;"></th>
                             <th>標的</th>
                             <th>數量</th>
                             <th>成本 / 現價</th>
@@ -380,7 +433,7 @@
 
         const defaultPortfolio = [];
         const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycby5rtFTOlviZASyaLkIOBI5rHMyE_mudct0JYo5AfBzD5eQbtxLxNx-CPKBCmemvycejw/exec";
-        const FUGLE_API_KEY = 'YzA1MDRkMjYtMmMyMS00NGVmLTk3ZDktNzUwNmE1NGI3NTQ2IDliZTNkMGE4LTI0ZTgtNGYxNy04MmZlLTFmYzJjZWMzM2RmOA=='; // ← 換成你的富果 API Key
+        const FUGLE_API_KEY = 'YOUR_FUGLE_API_KEY'; // ← 換成你的富果 API Key
 
         // ===== 富果即時行情（取代證交所）=====
 
@@ -916,6 +969,86 @@ async function refreshAllPrices(isAuto = false) {
             updateUI();
         }
 
+        let tradeStockId = null;
+        let tradeMode = 'buy';
+
+        function openTradeModal(id, mode) {
+            const stock = portfolio.find(s => s.id === id);
+            if (!stock) return;
+            tradeStockId = id;
+            tradeMode = mode;
+            const isBuy = mode === 'buy';
+            document.getElementById('tradeTitle').innerText = isBuy ? '📈 買入加碼' : '📉 賣出減倉';
+            document.getElementById('tradeSubtitle').innerText =
+                `${stock.name}　現持 ${stock.shares} 股／均價 ${stock.costPrice}`;
+            document.getElementById('tradeShares').value = '';
+            document.getElementById('tradePrice').value = stock.price || stock.costPrice;
+            document.getElementById('tradeSummary').innerText = '';
+            const btn = document.getElementById('tradeConfirmBtn');
+            btn.className = isBuy ? 'btn-trade-buy' : 'btn-trade-sell';
+            btn.innerText = isBuy ? '✅ 確認買入' : '✅ 確認賣出';
+            // live preview
+            ['tradeShares','tradePrice'].forEach(id =>
+                document.getElementById(id).oninput = previewTrade
+            );
+            document.getElementById('tradeOverlay').classList.add('active');
+            setTimeout(() => document.getElementById('tradeShares').focus(), 100);
+        }
+
+        function previewTrade() {
+            const stock = portfolio.find(s => s.id === tradeStockId);
+            if (!stock) return;
+            const qty   = parseFloat(document.getElementById('tradeShares').value) || 0;
+            const price = parseFloat(document.getElementById('tradePrice').value)  || 0;
+            const summary = document.getElementById('tradeSummary');
+            if (!qty || !price) { summary.innerText = ''; return; }
+            if (tradeMode === 'buy') {
+                const newShares = stock.shares + qty;
+                const newCost   = ((stock.shares * stock.costPrice) + (qty * price)) / newShares;
+                summary.innerHTML = `買後持股 <b>${newShares}</b> 股，新均價 <b>${newCost.toFixed(4)}</b>`;
+            } else {
+                const remaining = stock.shares - qty;
+                if (remaining < 0) { summary.innerHTML = `<span style="color:var(--danger)">超過持有數量！</span>`; return; }
+                summary.innerHTML = `賣後剩餘 <b>${remaining}</b> 股，均價不變 <b>${stock.costPrice}</b>`;
+            }
+        }
+
+        function confirmTrade() {
+            const stock = portfolio.find(s => s.id === tradeStockId);
+            if (!stock) return;
+            const qty   = parseFloat(document.getElementById('tradeShares').value);
+            const price = parseFloat(document.getElementById('tradePrice').value);
+            if (!qty || qty <= 0 || !price || price <= 0) { alert('請填入正確的數量與價格'); return; }
+            const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
+
+            if (tradeMode === 'buy') {
+                const newShares = stock.shares + qty;
+                stock.costPrice = parseFloat(
+                    (((stock.shares * stock.costPrice) + (qty * price)) / newShares).toFixed(4)
+                );
+                stock.shares = newShares;
+                stock.price  = price;
+            } else {
+                if (qty > stock.shares) { alert(`賣出數量（${qty}）超過持有（${stock.shares}）`); return; }
+                stock.shares -= qty;
+                if (stock.shares === 0) {
+                    if (confirm(`「${stock.name}」已全部賣出，要從投資組合移除嗎？`)) {
+                        portfolio = portfolio.filter(s => s.id !== tradeStockId);
+                        closeTradeModal();
+                        saveData(); updateUI(); return;
+                    }
+                }
+            }
+            calcStockData(stock, rate);
+            closeTradeModal();
+            saveData(); updateUI();
+        }
+
+        function closeTradeModal() {
+            document.getElementById('tradeOverlay').classList.remove('active');
+            tradeStockId = null;
+        }
+
         function updateUI() {
             saveData(); 
             updateTable();
@@ -1080,7 +1213,10 @@ async function refreshAllPrices(isAuto = false) {
                 }
 
                 const tr = document.createElement('tr');
+                tr.dataset.id = stock.id;
+                tr.draggable = true;
                 tr.innerHTML = `
+                    <td class="drag-handle" title="拖曳排序">⠿</td>
                     <td>
                         ${nameDisplay}<br>
                         <span class="badge ${marketClass}">${stock.market}</span>
@@ -1095,9 +1231,83 @@ async function refreshAllPrices(isAuto = false) {
                     <td>
                         <button class="btn-action btn-edit" onclick="editStock(${stock.id})">編輯</button>
                         <button class="btn-action btn-delete" onclick="deleteStock(${stock.id})">刪除</button>
+                        ${stock.assetType === '現股' ? `<button class="btn-action" style="background:var(--danger);color:white;" onclick="openTradeModal(${stock.id},'buy')">買入</button><button class="btn-action" style="background:var(--success);color:white;" onclick="openTradeModal(${stock.id},'sell')">賣出</button>` : ''}
                     </td>
                 `;
                 tbody.appendChild(tr);
+            });
+            initDragSort();
+        }
+
+
+        // ===== 拖曳排序 =====
+        function initDragSort() {
+            const tbody = document.querySelector('#stockTable tbody');
+            let dragSrc = null;
+
+            tbody.querySelectorAll('tr').forEach(row => {
+                // 桌機：Drag API
+                row.addEventListener('dragstart', e => {
+                    dragSrc = row;
+                    row.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+                row.addEventListener('dragend', () => {
+                    row.classList.remove('dragging');
+                    tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+                });
+                row.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+                    if (row !== dragSrc) row.classList.add('drag-over');
+                });
+                row.addEventListener('drop', e => {
+                    e.preventDefault();
+                    if (!dragSrc || dragSrc === row) return;
+                    // 重排 portfolio 陣列
+                    const fromId = parseInt(dragSrc.dataset.id);
+                    const toId   = parseInt(row.dataset.id);
+                    const fromIdx = portfolio.findIndex(s => s.id === fromId);
+                    const toIdx   = portfolio.findIndex(s => s.id === toId);
+                    const [moved] = portfolio.splice(fromIdx, 1);
+                    portfolio.splice(toIdx, 0, moved);
+                    saveData();
+                    updateUI();
+                });
+
+                // 手機：Touch API
+                const handle = row.querySelector('.drag-handle');
+                if (!handle) return;
+                let touchStartY = 0;
+                handle.addEventListener('touchstart', e => {
+                    dragSrc = row;
+                    touchStartY = e.touches[0].clientY;
+                    row.classList.add('dragging');
+                }, { passive: true });
+                handle.addEventListener('touchmove', e => {
+                    e.preventDefault();
+                    const y = e.touches[0].clientY;
+                    tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+                    const target = document.elementFromPoint(e.touches[0].clientX, y)?.closest('tr');
+                    if (target && target !== dragSrc && target.closest('tbody') === tbody) {
+                        target.classList.add('drag-over');
+                    }
+                }, { passive: false });
+                handle.addEventListener('touchend', e => {
+                    row.classList.remove('dragging');
+                    const y = e.changedTouches[0].clientY;
+                    const target = document.elementFromPoint(e.changedTouches[0].clientX, y)?.closest('tr');
+                    tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+                    if (!target || target === dragSrc || !target.closest('tbody')) return;
+                    const fromId = parseInt(dragSrc.dataset.id);
+                    const toId   = parseInt(target.dataset.id);
+                    const fromIdx = portfolio.findIndex(s => s.id === fromId);
+                    const toIdx   = portfolio.findIndex(s => s.id === toId);
+                    const [moved] = portfolio.splice(fromIdx, 1);
+                    portfolio.splice(toIdx, 0, moved);
+                    saveData();
+                    updateUI();
+                });
             });
         }
 
@@ -1348,9 +1558,23 @@ async function refreshAllPrices(isAuto = false) {
             `;
         }
 
+        function updateOcrModeLabel() {
+            const mode = document.querySelector('input[name="ocrImportMode"]:checked')?.value;
+            document.getElementById('modeAddLabel').classList.toggle('active', mode === 'add');
+            document.getElementById('modeOverwriteLabel').classList.toggle('active', mode === 'overwrite');
+        }
+        // init highlight on load
+        document.addEventListener('DOMContentLoaded', updateOcrModeLabel);
+
         function confirmOcrImport(count) {
             const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
             let importedCount = 0;
+
+            const mode = document.querySelector('input[name="ocrImportMode"]:checked')?.value || 'add';
+            if (mode === 'overwrite') {
+                if (!confirm('⚠️ 確定要清空現有所有持股，並以此次辨識結果取代嗎？')) return;
+                portfolio = [];
+            }
 
             for (let i = 0; i < count; i++) {
                 const checkbox = document.querySelector(`.ocr-row-check[data-idx="${i}"]`);
