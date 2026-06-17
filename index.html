@@ -433,7 +433,7 @@
 
         const defaultPortfolio = [];
         const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycby5rtFTOlviZASyaLkIOBI5rHMyE_mudct0JYo5AfBzD5eQbtxLxNx-CPKBCmemvycejw/exec";
-        const FUGLE_API_KEY = 'YzA1MDRkMjYtMmMyMS00NGVmLTk3ZDktNzUwNmE1NGI3NTQ2IDliZTNkMGE4LTI0ZTgtNGYxNy04MmZlLTFmYzJjZWMzM2RmOA=='; // ← 換成你的富果 API Key
+        const FUGLE_API_KEY = 'YzA1MDRkMjYtMmMyMS00NGVmLTk3ZDktNzUwNmE1NGI3NTQ2IDliZTNkMGE4LTI0ZTgtNGYxNy04MmZlLTFmYzJjZWMzM2RmOA==';
 
         // ===== 富果即時行情（取代證交所）=====
 
@@ -1571,9 +1571,21 @@ async function refreshAllPrices(isAuto = false) {
             let importedCount = 0;
 
             const mode = document.querySelector('input[name="ocrImportMode"]:checked')?.value || 'add';
+
+            // 先掃一遍取得這批資料涉及哪些市場
+            const marketsInBatch = new Set();
+            for (let i = 0; i < count; i++) {
+                const checkbox = document.querySelector(`.ocr-row-check[data-idx="${i}"]`);
+                if (checkbox && checkbox.checked) {
+                    marketsInBatch.add(document.getElementById(`ocr_market_${i}`).value);
+                }
+            }
+
             if (mode === 'overwrite') {
-                if (!confirm('⚠️ 確定要清空現有所有持股，並以此次辨識結果取代嗎？')) return;
-                portfolio = [];
+                const marketList = [...marketsInBatch].join('、');
+                if (!confirm(`⚠️ 確定要清空現有「${marketList}」的持股，並以此次辨識結果取代嗎？\n（其他市場的持股不受影響）`)) return;
+                // 只清除與這批相同市場的持股
+                portfolio = portfolio.filter(s => !marketsInBatch.has(s.market));
             }
 
             for (let i = 0; i < count; i++) {
