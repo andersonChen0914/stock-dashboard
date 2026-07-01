@@ -49,6 +49,18 @@
         
         .hint { font-size: 12px; color: #718096; margin-top: 4px; }
 
+        /* 對帳單 */
+        .card-realized .summary-card-value { }
+        .stmt-filter { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:16px; }
+        .stmt-range-btn { padding:7px 14px; border:1px solid #cbd5e0; background:#f7fafc; border-radius:20px; font-size:13px; cursor:pointer; transition:0.15s; color:#4a5568; }
+        .stmt-range-btn:hover { background:#edf2f7; }
+        .stmt-range-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+        .stmt-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+        .stmt-sum-card { background:#f7fafc; border-radius:10px; padding:14px; text-align:center; }
+        .stmt-sum-title { font-size:12px; color:#718096; margin-bottom:6px; }
+        .stmt-sum-value { font-size:1.3rem; font-weight:bold; }
+        #realizedTable td, #realizedTable th { font-size:12.5px; }
+
         /* 拖曳排序 */
         .drag-handle { cursor: grab; color: #cbd5e0; font-size: 18px; padding: 0 6px; user-select: none; touch-action: none; }
         .drag-handle:active { cursor: grabbing; }
@@ -78,6 +90,7 @@
         .card-tw { background: linear-gradient(135deg, #38a169, #2f855a); }
         .card-us { background: linear-gradient(135deg, #805ad5, #553c9a); }
         .card-ratio { background: linear-gradient(135deg, #718096, #4a5568); }
+        .card-realized { background: linear-gradient(135deg, #0d9488, #0f766e); }
         .ratio-safe { background: linear-gradient(135deg, #38a169, #276749); }
         .ratio-warn { background: linear-gradient(135deg, #d69e2e, #b7791f); }
         .ratio-danger { background: linear-gradient(135deg, #e53e3e, #9b2c2c); }
@@ -203,6 +216,64 @@
                 <div style="display:flex;gap:8px;margin-top:4px;">
                     <button class="btn-trade-buy"  id="tradeConfirmBtn" onclick="confirmTrade()">確認</button>
                     <button onclick="closeTradeModal()" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;padding:10px;font-size:14px;font-weight:bold;cursor:pointer;">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 手動新增交易 modal -->
+    <div id="manualOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2000;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:14px;padding:26px 24px 20px;width:360px;max-width:92vw;position:relative;box-shadow:0 8px 32px rgba(0,0,0,0.18);max-height:90vh;overflow-y:auto;">
+            <button onclick="closeManualTradeModal()" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;color:#a0aec0;cursor:pointer;padding:0;line-height:1;">✕</button>
+            <h3 style="margin:0 0 16px;">➕ 手動新增交易紀錄</h3>
+            <div style="display:flex;flex-direction:column;gap:11px;">
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:#4a5568;">日期</label>
+                    <input type="date" id="mtDate" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:3px;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:#4a5568;">標的名稱</label>
+                    <input type="text" id="mtName" placeholder="例：台積電 / AAPL" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:3px;box-sizing:border-box;">
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <div style="flex:1;">
+                        <label style="font-size:13px;font-weight:600;color:#4a5568;">市場</label>
+                        <select id="mtMarket" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:3px;box-sizing:border-box;">
+                            <option value="台股">台股</option>
+                            <option value="美股">美股</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:13px;font-weight:600;color:#4a5568;">類別</label>
+                        <select id="mtType" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:3px;box-sizing:border-box;">
+                            <option value="現股">現股</option>
+                            <option value="期貨">期貨</option>
+                            <option value="選擇權">選擇權</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <div style="flex:1;">
+                        <label style="font-size:13px;font-weight:600;color:#4a5568;">數量</label>
+                        <input type="number" id="mtShares" placeholder="股/口" step="any" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:3px;box-sizing:border-box;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:13px;font-weight:600;color:#4a5568;">成本價</label>
+                        <input type="number" id="mtCost" placeholder="買入價" step="any" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:3px;box-sizing:border-box;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:13px;font-weight:600;color:#4a5568;">賣出價</label>
+                        <input type="number" id="mtSell" placeholder="賣出價" step="any" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:3px;box-sizing:border-box;">
+                    </div>
+                </div>
+                <div id="mtMultRow">
+                    <label style="font-size:13px;font-weight:600;color:#4a5568;">合約乘數（期貨/選擇權適用，現股填1）</label>
+                    <input type="number" id="mtMult" value="1" step="any" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;margin-top:3px;box-sizing:border-box;">
+                </div>
+                <div id="mtPreview" style="font-size:12px;color:#718096;min-height:16px;"></div>
+                <div style="display:flex;gap:8px;margin-top:4px;">
+                    <button onclick="saveManualTrade()" style="flex:1;background:var(--primary);color:#fff;border:none;border-radius:6px;padding:10px;font-size:14px;font-weight:bold;cursor:pointer;">✅ 儲存紀錄</button>
+                    <button onclick="closeManualTradeModal()" style="flex:1;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;padding:10px;font-size:14px;font-weight:bold;cursor:pointer;">取消</button>
                 </div>
             </div>
         </div>
@@ -406,6 +477,10 @@
                     <div class="summary-card-title">全戶設質維持率</div>
                     <div class="summary-card-value" id="dashRatio">無借款</div>
                 </div>
+                <div class="summary-card card-realized" id="dashRealizedCard" onclick="toggleStatement()" title="點擊查看對帳單明細" style="cursor:pointer;">
+                    <div class="summary-card-title">已實現損益 <span style="font-size:10px;opacity:0.75;">（今年）▸</span></div>
+                    <div class="summary-card-value" id="dashRealized">0</div>
+                </div>
             </div>
 
             <div id="pieChartTotal" style="height: 350px;"></div>
@@ -418,6 +493,63 @@
             <div style="margin-top: 30px; border-top: 1px dashed #e2e8f0; padding-top: 20px;">
                 <h2>歷史淨值增長曲線</h2>
                 <div id="lineChartEquity" style="height: 300px; width: 100%;"></div>
+            </div>
+
+            <!-- ===== 已實現損益 / 對帳單（預設收合，點卡片展開）===== -->
+            <div id="statementSection" style="display:none;margin-top:30px;border-top:1px dashed #e2e8f0;padding-top:20px;">
+                <h2 style="display:flex;align-items:center;gap:8px;">
+                    💰 已實現損益對帳單
+                    <button onclick="toggleStatement()" style="margin-left:auto;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer;">收合 ▴</button>
+                </h2>
+
+                <div class="stmt-filter">
+                    <button class="stmt-range-btn" data-range="today" onclick="setStmtRange('today', this)">今日</button>
+                    <button class="stmt-range-btn" data-range="week"  onclick="setStmtRange('week', this)">本週</button>
+                    <button class="stmt-range-btn" data-range="month" onclick="setStmtRange('month', this)">本月</button>
+                    <button class="stmt-range-btn active" data-range="year"  onclick="setStmtRange('year', this)">今年</button>
+                    <button class="stmt-range-btn" data-range="all"   onclick="setStmtRange('all', this)">全部</button>
+                    <button class="stmt-range-btn" data-range="custom" onclick="setStmtRange('custom', this)">自訂</button>
+                    <span id="stmtCustomRange" style="display:none;align-items:center;gap:6px;">
+                        <input type="date" id="stmtFrom" onchange="renderRealized()" style="padding:6px;border:1px solid #cbd5e0;border-radius:6px;font-size:13px;">
+                        <span>~</span>
+                        <input type="date" id="stmtTo" onchange="renderRealized()" style="padding:6px;border:1px solid #cbd5e0;border-radius:6px;font-size:13px;">
+                    </span>
+                    <button class="btn-action btn-edit" style="margin-left:auto;" onclick="openManualTradeModal()">➕ 手動新增交易</button>
+                </div>
+
+                <div class="stmt-summary">
+                    <div class="stmt-sum-card">
+                        <div class="stmt-sum-title">區間已實現損益</div>
+                        <div class="stmt-sum-value" id="stmtTotalPL">0</div>
+                    </div>
+                    <div class="stmt-sum-card">
+                        <div class="stmt-sum-title">交易筆數</div>
+                        <div class="stmt-sum-value" id="stmtCount">0</div>
+                    </div>
+                    <div class="stmt-sum-card">
+                        <div class="stmt-sum-title">總稅費成本</div>
+                        <div class="stmt-sum-value" id="stmtTotalCost">0</div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="realizedTable">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>標的</th>
+                                <th>類別</th>
+                                <th>數量</th>
+                                <th>成本 / 賣價</th>
+                                <th>稅費</th>
+                                <th>淨損益(TWD)</th>
+                                <th style="width:60px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="realizedBody"></tbody>
+                    </table>
+                </div>
+                <p class="hint" id="realizedEmptyHint" style="text-align:center;padding:16px;">此區間尚無已實現損益紀錄</p>
             </div>
         </div>
     </div>
@@ -575,6 +707,8 @@ async function fetchAllTWPrices(twStocks) {
                 saveData();
             }
             updateUI();
+            loadRealized();
+            renderRealized();
             onAssetTypeChange();
             onStatusChange();
             setupAutoRefresh(); 
@@ -1050,23 +1184,268 @@ async function refreshAllPrices(isAuto = false) {
                 stock.price  = price;
             } else {
                 if (qty > stock.shares) { alert(`賣出數量（${qty}）超過持有（${stock.shares}）`); return; }
+
+                // ===== 計算並記錄實現損益 =====
+                const mult = stock.multiplier || 1;
+                let grossPL, tax = 0, fee = 0;
+                if (stock.assetType === '期貨' || stock.assetType === '選擇權') {
+                    // 平倉損益：多單 (賣價-成本)、空單 (成本-賣價)
+                    const sideSign = stock.futuresSide === 'short' ? -1 : 1;
+                    grossPL = (price - stock.costPrice) * qty * mult * sideSign;
+                } else {
+                    // 現股：(賣價-成本) × 股數
+                    grossPL = (price - stock.costPrice) * qty * mult;
+                    // 台股現股才扣證交稅+手續費
+                    if (stock.market === '台股') {
+                        const code = (stock.apiTicker || stock.name || '').replace(/\.(TW|TWO)$/i, '');
+                        const taxRate = /^00/.test(code) ? 0.001 : 0.003;
+                        tax = price * qty * mult * taxRate;
+                        const discount = parseFloat(document.getElementById('feeDiscount')?.value) || 1;
+                        fee = Math.max(price * qty * mult * 0.001425 * discount, 1);
+                    }
+                }
+                let netPL = grossPL - tax - fee;
+                let netPL_TWD = stock.market === '美股' ? netPL * rate : netPL;
+
+                addRealizedRecord({
+                    date: new Date().toISOString(),
+                    name: stock.name,
+                    market: stock.market,
+                    assetType: stock.assetType,
+                    shares: qty,
+                    costPrice: stock.costPrice,
+                    sellPrice: price,
+                    tax: tax,
+                    fee: fee,
+                    pl: netPL,
+                    plTWD: netPL_TWD,
+                    source: '賣出'
+                });
+
                 stock.shares -= qty;
                 if (stock.shares === 0) {
                     if (confirm(`「${stock.name}」已全部賣出，要從投資組合移除嗎？`)) {
                         portfolio = portfolio.filter(s => s.id !== tradeStockId);
                         closeTradeModal();
-                        saveData(); updateUI(); return;
+                        saveData(); updateUI(); renderRealized(); return;
                     }
                 }
             }
             calcStockData(stock, rate);
             closeTradeModal();
-            saveData(); updateUI();
+            saveData(); updateUI(); renderRealized();
         }
 
         function closeTradeModal() {
             document.getElementById('tradeOverlay').classList.remove('active');
             tradeStockId = null;
+        }
+
+        // ========== 已實現損益 / 對帳單 ==========
+        let realizedRecords = [];
+        let stmtCurrentRange = 'year';
+
+        function toggleStatement() {
+            const sec = document.getElementById('statementSection');
+            const isHidden = sec.style.display === 'none' || !sec.style.display;
+            sec.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) {
+                renderRealized();
+                sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function updateRealizedCard() {
+            const now = new Date();
+            const yearStart = new Date(now.getFullYear(), 0, 1);
+            const yearPL = realizedRecords
+                .filter(r => new Date(r.date) >= yearStart)
+                .reduce((sum, r) => sum + r.plTWD, 0);
+            const el = document.getElementById('dashRealized');
+            if (!el) return;
+            el.innerText = (yearPL >= 0 ? '+' : '') + yearPL.toLocaleString(undefined, {maximumFractionDigits: 0});
+        }
+
+        function loadRealized() {
+            try {
+                const saved = localStorage.getItem('realizedRecordsData');
+                realizedRecords = saved ? JSON.parse(saved) : [];
+                if (!Array.isArray(realizedRecords)) realizedRecords = [];
+            } catch (e) { realizedRecords = []; }
+            updateRealizedCard();
+        }
+
+        function saveRealized() {
+            localStorage.setItem('realizedRecordsData', JSON.stringify(realizedRecords));
+        }
+
+        function addRealizedRecord(rec) {
+            rec.id = Date.now() + Math.random();
+            realizedRecords.push(rec);
+            saveRealized();
+            updateRealizedCard();
+        }
+
+        function setStmtRange(range, btn) {
+            stmtCurrentRange = range;
+            document.querySelectorAll('.stmt-range-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            document.getElementById('stmtCustomRange').style.display = range === 'custom' ? 'flex' : 'none';
+            renderRealized();
+        }
+
+        function getStmtRangeBounds() {
+            const now = new Date();
+            let from = null, to = null;
+            if (stmtCurrentRange === 'today') {
+                from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                to = new Date(from); to.setDate(to.getDate() + 1);
+            } else if (stmtCurrentRange === 'week') {
+                const day = (now.getDay() + 6) % 7; // 週一為第一天
+                from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+                to = new Date(from); to.setDate(to.getDate() + 7);
+            } else if (stmtCurrentRange === 'month') {
+                from = new Date(now.getFullYear(), now.getMonth(), 1);
+                to = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            } else if (stmtCurrentRange === 'year') {
+                from = new Date(now.getFullYear(), 0, 1);
+                to = new Date(now.getFullYear() + 1, 0, 1);
+            } else if (stmtCurrentRange === 'custom') {
+                const f = document.getElementById('stmtFrom').value;
+                const t = document.getElementById('stmtTo').value;
+                if (f) from = new Date(f + 'T00:00:00');
+                if (t) { to = new Date(t + 'T00:00:00'); to.setDate(to.getDate() + 1); }
+            }
+            return { from, to };
+        }
+
+        function renderRealized() {
+            const body = document.getElementById('realizedBody');
+            const hint = document.getElementById('realizedEmptyHint');
+            const { from, to } = getStmtRangeBounds();
+
+            let filtered = realizedRecords.filter(r => {
+                const d = new Date(r.date);
+                if (from && d < from) return false;
+                if (to && d >= to) return false;
+                return true;
+            });
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            body.innerHTML = '';
+            let totalPL = 0, totalCost = 0;
+            filtered.forEach(r => {
+                totalPL += r.plTWD;
+                totalCost += (r.tax || 0) + (r.fee || 0);
+                const d = new Date(r.date);
+                const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+                const plClass = r.plTWD >= 0 ? 'text-profit' : 'text-loss';
+                const plSign = r.plTWD >= 0 ? '+' : '';
+                const marketBadge = r.market === '台股' ? 'badge-tw' : 'badge-us';
+                const costFee = (r.tax || 0) + (r.fee || 0);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${dateStr}</td>
+                    <td>${r.name}<br><span class="badge ${marketBadge}" style="font-size:10px;">${r.market}</span></td>
+                    <td>${r.assetType}${r.source === '手動' ? ' <span style="font-size:10px;color:#a0aec0;">✍️</span>' : ''}</td>
+                    <td>${r.shares}</td>
+                    <td>${r.costPrice} / ${r.sellPrice}</td>
+                    <td>${costFee > 0 ? costFee.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+                    <td class="${plClass}">${plSign}${r.plTWD.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+                    <td><button class="btn-action btn-delete" onclick="deleteRealized(${r.id})">刪</button></td>
+                `;
+                body.appendChild(tr);
+            });
+
+            hint.style.display = filtered.length === 0 ? 'block' : 'none';
+
+            const plElem = document.getElementById('stmtTotalPL');
+            plElem.innerText = (totalPL >= 0 ? '+' : '') + totalPL.toLocaleString(undefined,{maximumFractionDigits:0});
+            plElem.className = 'stmt-sum-value ' + (totalPL >= 0 ? 'text-profit' : 'text-loss');
+            document.getElementById('stmtCount').innerText = filtered.length;
+            document.getElementById('stmtTotalCost').innerText = totalCost.toLocaleString(undefined,{maximumFractionDigits:0});
+        }
+
+        function deleteRealized(id) {
+            if (!confirm('確定刪除這筆已實現損益紀錄？')) return;
+            realizedRecords = realizedRecords.filter(r => r.id !== id);
+            saveRealized();
+            renderRealized();
+            updateRealizedCard();
+        }
+
+        // ---- 手動新增交易 ----
+        function openManualTradeModal() {
+            const today = new Date();
+            document.getElementById('mtDate').value =
+                `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            ['mtName','mtShares','mtCost','mtSell'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('mtMult').value = 1;
+            document.getElementById('mtPreview').innerText = '';
+            ['mtShares','mtCost','mtSell','mtMult','mtMarket','mtType'].forEach(id =>
+                document.getElementById(id).oninput = previewManualTrade
+            );
+            document.getElementById('mtType').onchange = previewManualTrade;
+            document.getElementById('manualOverlay').style.display = 'flex';
+        }
+
+        function closeManualTradeModal() {
+            document.getElementById('manualOverlay').style.display = 'none';
+        }
+
+        function calcManualPL() {
+            const market = document.getElementById('mtMarket').value;
+            const type = document.getElementById('mtType').value;
+            const shares = parseFloat(document.getElementById('mtShares').value) || 0;
+            const cost = parseFloat(document.getElementById('mtCost').value) || 0;
+            const sell = parseFloat(document.getElementById('mtSell').value) || 0;
+            const mult = parseFloat(document.getElementById('mtMult').value) || 1;
+            const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
+            let grossPL = (sell - cost) * shares * mult;
+            let tax = 0, fee = 0;
+            if (type === '現股' && market === '台股') {
+                const name = document.getElementById('mtName').value.trim();
+                const taxRate = /^00/.test(name) ? 0.001 : 0.003;
+                tax = sell * shares * mult * taxRate;
+                const discount = parseFloat(document.getElementById('feeDiscount')?.value) || 1;
+                fee = Math.max(sell * shares * mult * 0.001425 * discount, 1);
+            }
+            const netPL = grossPL - tax - fee;
+            const netPL_TWD = market === '美股' ? netPL * rate : netPL;
+            return { tax, fee, netPL, netPL_TWD };
+        }
+
+        function previewManualTrade() {
+            const shares = parseFloat(document.getElementById('mtShares').value) || 0;
+            const cost = parseFloat(document.getElementById('mtCost').value) || 0;
+            const sell = parseFloat(document.getElementById('mtSell').value) || 0;
+            const prev = document.getElementById('mtPreview');
+            if (!shares || !cost || !sell) { prev.innerText = ''; return; }
+            const { tax, fee, netPL_TWD } = calcManualPL();
+            const sign = netPL_TWD >= 0 ? '+' : '';
+            const color = netPL_TWD >= 0 ? '#e53e3e' : '#38a169';
+            prev.innerHTML = `淨損益：<b style="color:${color}">${sign}${netPL_TWD.toLocaleString(undefined,{maximumFractionDigits:0})}</b> TWD（稅+費 ${(tax+fee).toLocaleString(undefined,{maximumFractionDigits:0})}）`;
+        }
+
+        function saveManualTrade() {
+            const date = document.getElementById('mtDate').value;
+            const name = document.getElementById('mtName').value.trim();
+            const market = document.getElementById('mtMarket').value;
+            const type = document.getElementById('mtType').value;
+            const shares = parseFloat(document.getElementById('mtShares').value);
+            const cost = parseFloat(document.getElementById('mtCost').value);
+            const sell = parseFloat(document.getElementById('mtSell').value);
+            if (!date || !name || !shares || !cost || !sell) { alert('請完整填寫日期、標的、數量、成本價、賣出價'); return; }
+            const { tax, fee, netPL, netPL_TWD } = calcManualPL();
+            addRealizedRecord({
+                date: new Date(date + 'T12:00:00').toISOString(),
+                name, market, assetType: type,
+                shares, costPrice: cost, sellPrice: sell,
+                tax, fee, pl: netPL, plTWD: netPL_TWD,
+                source: '手動'
+            });
+            closeManualTradeModal();
+            renderRealized();
         }
 
         function updateUI() {
