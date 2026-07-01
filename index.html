@@ -215,6 +215,8 @@
                 <div class="exchange-rate-box">
                     USD/TWD 匯率: 
                     <input type="number" id="exchangeRate" value="32.50" step="0.001" onchange="recalculateCurrencies()">
+                    <span style="margin-left:12px;">台股手續費折扣: </span>
+                    <input type="number" id="feeDiscount" value="0.6" step="0.01" min="0" max="1" title="例：6折填0.6、電子單常見0.6，無折扣填1" onchange="recalculateCurrencies()" style="width:60px;">
                 </div>
             </h2>
             
@@ -522,7 +524,21 @@ async function fetchAllTWPrices(twStocks) {
                 s.totalValue = s.shares * s.price * s.multiplier;
                 s.totalCostTWD = s.market === '美股' ? s.totalCost * rate : s.totalCost;
                 s.totalValueTWD = s.market === '美股' ? s.totalValue * rate : s.totalValue;
-                s.unrealizedPL_TWD = s.totalValueTWD - s.totalCostTWD;
+
+                // 台股現股：扣除賣出成本；期貨/選擇權與美股不扣
+                s.sellTax = 0;
+                s.sellFee = 0;
+                if (s.market === '台股' && s.assetType === '現股') {
+                    // 證交稅：ETF（代號 00 開頭）0.1%，一般個股 0.3%
+                    const code = (s.apiTicker || s.name || '').replace(/\.(TW|TWO)$/i, '');
+                    const isETF = /^00/.test(code);
+                    const taxRate = isETF ? 0.001 : 0.003;
+                    s.sellTax = s.totalValue * taxRate;
+                    // 賣出手續費：0.1425% × 折扣（最低 1 元，與券商實務一致）
+                    const discount = parseFloat(document.getElementById('feeDiscount')?.value) || 1;
+                    s.sellFee = Math.max(s.totalValue * 0.001425 * discount, 1);
+                }
+                s.unrealizedPL_TWD = s.totalValueTWD - s.totalCostTWD - s.sellTax - s.sellFee;
             }
             s.returnRate = s.totalCostTWD > 0 ? (s.unrealizedPL_TWD / s.totalCostTWD) * 100 : 0;
         }
@@ -542,6 +558,9 @@ async function fetchAllTWPrices(twStocks) {
             
             const rateInput = document.getElementById('exchangeRate');
             if(savedRate) rateInput.value = savedRate;
+
+            const savedFeeDiscount = localStorage.getItem('myPortfolioFeeDiscount');
+            if(savedFeeDiscount) document.getElementById('feeDiscount').value = savedFeeDiscount;
 
             const rate = parseFloat(rateInput.value) || 32.5;
 
@@ -578,6 +597,7 @@ async function fetchAllTWPrices(twStocks) {
             localStorage.setItem('myStockPortfolioData', JSON.stringify(portfolio));
             localStorage.setItem('myPortfolioAutoRefresh', document.getElementById('autoRefresh').value);
             localStorage.setItem('myPortfolioExchangeRate', document.getElementById('exchangeRate').value);
+            localStorage.setItem('myPortfolioFeeDiscount', document.getElementById('feeDiscount').value);
             localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value.trim());
         }
 
