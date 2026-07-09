@@ -288,6 +288,8 @@
                     <input type="number" id="exchangeRate" value="32.50" step="0.001" onchange="recalculateCurrencies()">
                     <span style="margin-left:12px;">台股手續費折扣: </span>
                     <input type="number" id="feeDiscount" value="0.6" step="0.01" min="0" max="1" title="例：6折填0.6、電子單常見0.6，無折扣填1" onchange="recalculateCurrencies()" style="width:60px;">
+                    <span style="margin-left:12px;">期貨每口手續費: </span>
+                    <input type="number" id="futFeePerLot" value="25" step="1" min="0" title="券商每口收費，期貨與選擇權適用" onchange="recalculateCurrencies()" style="width:60px;">
                 </div>
             </h2>
             
@@ -620,6 +622,33 @@ async function fetchAllTWPrices(twStocks) {
     return priceMap;
 }
 
+        // ===== 共用：計算賣出/平倉的稅費成本 =====
+        // 回傳 { tax, fee }，皆為該商品原幣別
+        function calcSellCost(stock, price, qty) {
+            const mult = stock.multiplier || 1;
+            const notional = price * qty * mult; // 契約金額 / 權利金 / 賣出金額
+            const isFut = stock.assetType === '期貨';
+            const isOpt = stock.assetType === '選擇權';
+
+            if (isFut || isOpt) {
+                // 期交稅：期貨 0.002%（十萬分之2）、選擇權 0.1%（權利金）
+                const tax = notional * (isOpt ? 0.001 : 0.00002);
+                // 手續費：每口固定金額 × 口數
+                const perLot = parseFloat(document.getElementById('futFeePerLot')?.value) || 0;
+                const fee = perLot * qty;
+                return { tax, fee };
+            }
+
+            // 現股：只有台股扣證交稅 + 手續費
+            if (stock.market !== '台股') return { tax: 0, fee: 0 };
+            const code = (stock.apiTicker || stock.name || '').replace(/\.(TW|TWO)$/i, '');
+            const taxRate = /^00/.test(code) ? 0.001 : 0.003; // ETF 0.1%、個股 0.3%
+            const tax = notional * taxRate;
+            const discount = parseFloat(document.getElementById('feeDiscount')?.value) || 1;
+            const fee = Math.max(notional * 0.001425 * discount, 1);
+            return { tax, fee };
+        }
+
         function calcStockData(s, rate) {
             if (s.costPrice === undefined) s.costPrice = s.price;
             if (s.margin === undefined) s.margin = 0;
@@ -633,10 +662,15 @@ async function fetchAllTWPrices(twStocks) {
             if (s.assetType === '期貨') {
                 const sideSign = s.futuresSide === 'short' ? -1 : 1;
                 const contractPL = (s.price - s.costPrice) * s.shares * s.multiplier * sideSign;
+                // 平倉稅費（期交稅 + 每口手續費）
+                const { tax, fee } = calcSellCost(s, s.price, s.shares);
+                s.sellTax = tax;
+                s.sellFee = fee;
+                const netContractPL = contractPL - tax - fee;
                 s.totalCost = s.margin; 
-                s.totalValue = s.margin + contractPL; 
+                s.totalValue = s.margin + netContractPL; 
                 s.totalCostTWD = s.market === '美股' ? s.totalCost * rate : s.totalCost;
-                const contractPL_TWD = s.market === '美股' ? contractPL * rate : contractPL;
+                const contractPL_TWD = s.market === '美股' ? netContractPL * rate : netContractPL;
                 s.totalValueTWD = s.totalCostTWD + contractPL_TWD;
                 s.unrealizedPL_TWD = contractPL_TWD;
                 s.notionalValue = s.price * s.shares * s.multiplier;
@@ -657,20 +691,12 @@ async function fetchAllTWPrices(twStocks) {
                 s.totalCostTWD = s.market === '美股' ? s.totalCost * rate : s.totalCost;
                 s.totalValueTWD = s.market === '美股' ? s.totalValue * rate : s.totalValue;
 
-                // 台股現股：扣除賣出成本；期貨/選擇權與美股不扣
-                s.sellTax = 0;
-                s.sellFee = 0;
-                if (s.market === '台股' && s.assetType === '現股') {
-                    // 證交稅：ETF（代號 00 開頭）0.1%，一般個股 0.3%
-                    const code = (s.apiTicker || s.name || '').replace(/\.(TW|TWO)$/i, '');
-                    const isETF = /^00/.test(code);
-                    const taxRate = isETF ? 0.001 : 0.003;
-                    s.sellTax = s.totalValue * taxRate;
-                    // 賣出手續費：0.1425% × 折扣（最低 1 元，與券商實務一致）
-                    const discount = parseFloat(document.getElementById('feeDiscount')?.value) || 1;
-                    s.sellFee = Math.max(s.totalValue * 0.001425 * discount, 1);
-                }
-                s.unrealizedPL_TWD = s.totalValueTWD - s.totalCostTWD - s.sellTax - s.sellFee;
+                // 賣出/平倉成本：現股扣證交稅+手續費、選擇權扣期交稅+每口手續費
+                const { tax, fee } = calcSellCost(s, s.price, s.shares);
+                s.sellTax = tax;
+                s.sellFee = fee;
+                const costTWD = s.market === '美股' ? (tax + fee) * rate : (tax + fee);
+                s.unrealizedPL_TWD = s.totalValueTWD - s.totalCostTWD - costTWD;
             }
             s.returnRate = s.totalCostTWD > 0 ? (s.unrealizedPL_TWD / s.totalCostTWD) * 100 : 0;
         }
@@ -693,6 +719,9 @@ async function fetchAllTWPrices(twStocks) {
 
             const savedFeeDiscount = localStorage.getItem('myPortfolioFeeDiscount');
             if(savedFeeDiscount) document.getElementById('feeDiscount').value = savedFeeDiscount;
+
+            const savedFutFee = localStorage.getItem('myPortfolioFutFeePerLot');
+            if(savedFutFee) document.getElementById('futFeePerLot').value = savedFutFee;
 
             const rate = parseFloat(rateInput.value) || 32.5;
 
@@ -732,6 +761,7 @@ async function fetchAllTWPrices(twStocks) {
             localStorage.setItem('myPortfolioAutoRefresh', document.getElementById('autoRefresh').value);
             localStorage.setItem('myPortfolioExchangeRate', document.getElementById('exchangeRate').value);
             localStorage.setItem('myPortfolioFeeDiscount', document.getElementById('feeDiscount').value);
+            localStorage.setItem('myPortfolioFutFeePerLot', document.getElementById('futFeePerLot').value);
             localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value.trim());
         }
 
@@ -1132,15 +1162,26 @@ async function refreshAllPrices(isAuto = false) {
             tradeStockId = id;
             tradeMode = mode;
             const isBuy = mode === 'buy';
-            document.getElementById('tradeTitle').innerText = isBuy ? '📈 買入加碼' : '📉 賣出減倉';
+            const isDeriv = stock.assetType === '期貨' || stock.assetType === '選擇權';
+            const unit = isDeriv ? '口' : '股';
+
+            document.getElementById('tradeTitle').innerText = isDeriv
+                ? (isBuy ? '📈 加碼開倉' : '📉 平倉了結')
+                : (isBuy ? '📈 買入加碼' : '📉 賣出減倉');
+
             document.getElementById('tradeSubtitle').innerText =
-                `${stock.name}　現持 ${stock.shares} 股／均價 ${stock.costPrice}`;
+                `${stock.name}　現持 ${stock.shares} ${unit}／均價 ${stock.costPrice}` +
+                (isDeriv && stock.multiplier > 1 ? `（乘數 ${stock.multiplier}）` : '');
+
             document.getElementById('tradeShares').value = '';
             document.getElementById('tradePrice').value = stock.price || stock.costPrice;
             document.getElementById('tradeSummary').innerText = '';
             const btn = document.getElementById('tradeConfirmBtn');
             btn.className = isBuy ? 'btn-trade-buy' : 'btn-trade-sell';
-            btn.innerText = isBuy ? '✅ 確認買入' : '✅ 確認賣出';
+            btn.innerText = isDeriv
+                ? (isBuy ? '✅ 確認加碼' : '✅ 確認平倉')
+                : (isBuy ? '✅ 確認買入' : '✅ 確認賣出');
+
             // live preview
             ['tradeShares','tradePrice'].forEach(id =>
                 document.getElementById(id).oninput = previewTrade
@@ -1156,14 +1197,33 @@ async function refreshAllPrices(isAuto = false) {
             const price = parseFloat(document.getElementById('tradePrice').value)  || 0;
             const summary = document.getElementById('tradeSummary');
             if (!qty || !price) { summary.innerText = ''; return; }
+
+            const isDeriv = stock.assetType === '期貨' || stock.assetType === '選擇權';
+            const unit = isDeriv ? '口' : '股';
+            const mult = stock.multiplier || 1;
+
             if (tradeMode === 'buy') {
                 const newShares = stock.shares + qty;
                 const newCost   = ((stock.shares * stock.costPrice) + (qty * price)) / newShares;
-                summary.innerHTML = `買後持股 <b>${newShares}</b> 股，新均價 <b>${newCost.toFixed(4)}</b>`;
+                summary.innerHTML = `${isDeriv ? '加碼後持倉' : '買後持股'} <b>${newShares}</b> ${unit}，新均價 <b>${newCost.toFixed(4)}</b>`;
             } else {
                 const remaining = stock.shares - qty;
-                if (remaining < 0) { summary.innerHTML = `<span style="color:var(--danger)">超過持有數量！</span>`; return; }
-                summary.innerHTML = `賣後剩餘 <b>${remaining}</b> 股，均價不變 <b>${stock.costPrice}</b>`;
+                if (remaining < 0) {
+                    summary.innerHTML = `<span style="color:var(--danger)">超過持有${isDeriv ? '口數' : '數量'}！</span>`;
+                    return;
+                }
+                // 預估這筆實現損益
+                const grossPL = (price - stock.costPrice) * qty * mult;
+                const { tax, fee } = calcSellCost(stock, price, qty);
+                const netPL = grossPL - tax - fee;
+                const netPL_TWD = stock.market === '美股' ? netPL * (parseFloat(document.getElementById('exchangeRate').value) || 32.5) : netPL;
+                const sign = netPL_TWD >= 0 ? '+' : '';
+                const color = netPL_TWD >= 0 ? 'var(--danger)' : 'var(--success)';
+
+                summary.innerHTML =
+                    `${isDeriv ? '平倉後剩餘' : '賣後剩餘'} <b>${remaining}</b> ${unit}，均價不變 <b>${stock.costPrice}</b><br>` +
+                    `預估實現損益：<b style="color:${color}">${sign}${netPL_TWD.toLocaleString(undefined,{maximumFractionDigits:0})}</b> TWD` +
+                    (tax + fee > 0 ? `<span style="color:#a0aec0;">（含稅費 ${(tax+fee).toLocaleString(undefined,{maximumFractionDigits:0})}）</span>` : '');
             }
         }
 
@@ -1183,27 +1243,17 @@ async function refreshAllPrices(isAuto = false) {
                 stock.shares = newShares;
                 stock.price  = price;
             } else {
-                if (qty > stock.shares) { alert(`賣出數量（${qty}）超過持有（${stock.shares}）`); return; }
+                const isDeriv = stock.assetType === '期貨' || stock.assetType === '選擇權';
+                const unit = isDeriv ? '口' : '股';
+                if (qty > stock.shares) {
+                    alert(`${isDeriv ? '平倉' : '賣出'}${unit}數（${qty}）超過持有（${stock.shares}）`);
+                    return;
+                }
 
                 // ===== 計算並記錄實現損益 =====
                 const mult = stock.multiplier || 1;
-                let grossPL, tax = 0, fee = 0;
-                if (stock.assetType === '期貨' || stock.assetType === '選擇權') {
-                    // 平倉損益：多單 (賣價-成本)、空單 (成本-賣價)
-                    const sideSign = stock.futuresSide === 'short' ? -1 : 1;
-                    grossPL = (price - stock.costPrice) * qty * mult * sideSign;
-                } else {
-                    // 現股：(賣價-成本) × 股數
-                    grossPL = (price - stock.costPrice) * qty * mult;
-                    // 台股現股才扣證交稅+手續費
-                    if (stock.market === '台股') {
-                        const code = (stock.apiTicker || stock.name || '').replace(/\.(TW|TWO)$/i, '');
-                        const taxRate = /^00/.test(code) ? 0.001 : 0.003;
-                        tax = price * qty * mult * taxRate;
-                        const discount = parseFloat(document.getElementById('feeDiscount')?.value) || 1;
-                        fee = Math.max(price * qty * mult * 0.001425 * discount, 1);
-                    }
-                }
+                const grossPL = (price - stock.costPrice) * qty * mult;
+                const { tax, fee } = calcSellCost(stock, price, qty);
                 let netPL = grossPL - tax - fee;
                 let netPL_TWD = stock.market === '美股' ? netPL * rate : netPL;
 
@@ -1219,12 +1269,12 @@ async function refreshAllPrices(isAuto = false) {
                     fee: fee,
                     pl: netPL,
                     plTWD: netPL_TWD,
-                    source: '賣出'
+                    source: isDeriv ? '平倉' : '賣出'
                 });
 
                 stock.shares -= qty;
                 if (stock.shares === 0) {
-                    if (confirm(`「${stock.name}」已全部賣出，要從投資組合移除嗎？`)) {
+                    if (confirm(`「${stock.name}」已${isDeriv ? '全部平倉' : '全部賣出'}，要從投資組合移除嗎？`)) {
                         portfolio = portfolio.filter(s => s.id !== tradeStockId);
                         closeTradeModal();
                         saveData(); updateUI(); renderRealized(); return;
@@ -1400,16 +1450,12 @@ async function refreshAllPrices(isAuto = false) {
             const cost = parseFloat(document.getElementById('mtCost').value) || 0;
             const sell = parseFloat(document.getElementById('mtSell').value) || 0;
             const mult = parseFloat(document.getElementById('mtMult').value) || 1;
+            const name = document.getElementById('mtName').value.trim();
             const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
-            let grossPL = (sell - cost) * shares * mult;
-            let tax = 0, fee = 0;
-            if (type === '現股' && market === '台股') {
-                const name = document.getElementById('mtName').value.trim();
-                const taxRate = /^00/.test(name) ? 0.001 : 0.003;
-                tax = sell * shares * mult * taxRate;
-                const discount = parseFloat(document.getElementById('feeDiscount')?.value) || 1;
-                fee = Math.max(sell * shares * mult * 0.001425 * discount, 1);
-            }
+
+            const grossPL = (sell - cost) * shares * mult;
+            const fakeStock = { assetType: type, market, multiplier: mult, name, apiTicker: name };
+            const { tax, fee } = calcSellCost(fakeStock, sell, shares);
             const netPL = grossPL - tax - fee;
             const netPL_TWD = market === '美股' ? netPL * rate : netPL;
             return { tax, fee, netPL, netPL_TWD };
@@ -1630,7 +1676,12 @@ async function refreshAllPrices(isAuto = false) {
                     <td>
                         <button class="btn-action btn-edit" onclick="editStock(${stock.id})">編輯</button>
                         <button class="btn-action btn-delete" onclick="deleteStock(${stock.id})">刪除</button>
-                        ${stock.assetType === '現股' ? `<button class="btn-action" style="background:var(--danger);color:white;" onclick="openTradeModal(${stock.id},'buy')">買入</button><button class="btn-action" style="background:var(--success);color:white;" onclick="openTradeModal(${stock.id},'sell')">賣出</button>` : ''}
+                        ${(() => {
+                            const isDeriv = stock.assetType === '期貨' || stock.assetType === '選擇權';
+                            const buyLabel  = isDeriv ? '加碼' : '買入';
+                            const sellLabel = isDeriv ? '平倉' : '賣出';
+                            return `<button class="btn-action" style="background:var(--danger);color:white;" onclick="openTradeModal(${stock.id},'buy')">${buyLabel}</button><button class="btn-action" style="background:var(--success);color:white;" onclick="openTradeModal(${stock.id},'sell')">${sellLabel}</button>`;
+                        })()}
                     </td>
                 `;
                 tbody.appendChild(tr);
