@@ -1618,11 +1618,31 @@ async function refreshAllPrices(isAuto = false) {
             updateChart();
         }
 
-        function updateDashboard() {
-            const totalTWD = portfolio.reduce((sum, s) => sum + s.totalValueTWD, 0);
-            const totalPL = portfolio.reduce((sum, s) => sum + s.unrealizedPL_TWD, 0);
-            const twTotalTWD = portfolio.filter(s => s.market === '台股').reduce((sum, s) => sum + s.totalValueTWD, 0);
-            const usTotalTWD = portfolio.filter(s => s.market === '美股').reduce((sum, s) => sum + s.totalValueTWD, 0);
+function updateDashboard() {
+            const futBalance = parseFloat(document.getElementById('futAccountBalance').value) || 0;
+            
+            // 初始化總資產，先把「期貨戶可用存款」當作基底加進去
+            let totalTWD = futBalance;
+            let twTotalTWD = futBalance; // 假設期貨本金屬於台股資產
+            let usTotalTWD = 0;
+            let totalPL = 0;
+
+            // 重新精準計算各項資產
+            portfolio.forEach(s => {
+                totalPL += s.unrealizedPL_TWD || 0;
+                
+                if (s.assetType === '期貨' || s.assetType === '選擇權') {
+                    // 衍生性商品：本金已統包在 futBalance 中，因此總資產只加減「未實現損益」
+                    totalTWD += s.unrealizedPL_TWD || 0;
+                    if (s.market === '台股') twTotalTWD += s.unrealizedPL_TWD || 0;
+                    if (s.market === '美股') usTotalTWD += s.unrealizedPL_TWD || 0;
+                } else {
+                    // 現股 / ETF：照常加計整筆總市值 (本金+損益)
+                    totalTWD += s.totalValueTWD || 0;
+                    if (s.market === '台股') twTotalTWD += s.totalValueTWD || 0;
+                    if (s.market === '美股') usTotalTWD += s.totalValueTWD || 0;
+                }
+            });
 
             document.getElementById('dashTotal').innerText = totalTWD.toLocaleString(undefined, {maximumFractionDigits: 0});
             
