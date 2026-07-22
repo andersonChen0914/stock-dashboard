@@ -22,8 +22,9 @@
         h2 { margin-top: 0; color: var(--text); border-bottom: 2px solid #edf2f7; padding-bottom: 10px; font-size: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .section-title { margin-top: 25px; border-top: 1px dashed #cbd5e0; padding-top: 15px; }
         
-        .exchange-rate-box { font-size: 0.9rem; font-weight: normal; display: flex; align-items: center; gap: 5px; color: #4a5568; }
-        .exchange-rate-box input { padding: 4px 8px; width: 80px; border: 1px solid #cbd5e0; border-radius: 4px; }
+	.exchange-rate-box { font-size: 0.9rem; font-weight: normal; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: #4a5568; }
+	.rate-item { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+	.exchange-rate-box input { padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 4px; }
         
         .form-row { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .form-group { flex: 1; display: flex; flex-direction: column; min-width: 120px; }
@@ -286,16 +287,24 @@
         <div class="panel" style="flex: 1.8;">
             <h2>
                 新增與編輯部位
-                <div class="exchange-rate-box">
-                    USD/TWD 匯率: 
-                    <input type="number" id="exchangeRate" value="32.50" step="0.001" onchange="recalculateCurrencies()">
-                    <span style="margin-left:12px;">台股手續費折扣: </span>
-                    <input type="number" id="feeDiscount" value="0.6" step="0.01" min="0" max="1" title="例：6折填0.6、電子單常見0.6，無折扣填1" onchange="recalculateCurrencies()" style="width:60px;">
-                    <span style="margin-left:12px;">期貨每口手續費: </span>
-                    <input type="number" id="futFeePerLot" value="25" step="1" min="0" title="券商每口收費，期貨與選擇權適用" onchange="recalculateCurrencies()" style="width:60px;">
-                    <span style="margin-left:12px;">期貨戶存款: </span>
-                    <input type="number" id="futAccountBalance" value="0" step="1000" min="0" title="期貨保證金帳戶目前存款總額（不含未實現損益）" onchange="recalculateCurrencies()" style="width:90px;">
-                </div>
+	<div class="exchange-rate-box">
+   	  <div class="rate-item">
+           <span>USD/TWD 匯率:</span>
+        <input type="number" id="exchangeRate" value="32.50" step="0.001" onchange="recalculateCurrencies()" style="width:80px;">
+    </div>
+    <div class="rate-item">
+        <span>台股手續費折扣:</span>
+        <input type="number" id="feeDiscount" value="0.6" step="0.01" min="0" max="1" title="例：6折填0.6、電子單常見0.6，無折扣填1" onchange="recalculateCurrencies()" style="width:60px;">
+    </div>
+    <div class="rate-item">
+        <span>期貨每口手續費:</span>
+        <input type="number" id="futFeePerLot" value="25" step="1" min="0" title="券商每口收費，期貨與選擇權適用" onchange="recalculateCurrencies()" style="width:60px;">
+    </div>
+    <div class="rate-item">
+        <span>期貨戶存款:</span>
+        <input type="number" id="futAccountBalance" value="0" step="1000" min="0" title="期貨保證金帳戶目前存款總額（不含未實現損益）" onchange="recalculateCurrencies()" style="width:90px;">
+    </div>
+</div>
             </h2>
             
             <div class="form-row">
