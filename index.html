@@ -200,7 +200,19 @@
             </div>
         </div>
     </div>
-
+	<!-- 快速設定保證金 modal -->
+    <div id="marginOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:14px; padding:26px 24px 20px; width:340px; max-width:92vw; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+            <button onclick="closeMarginModal()" style="position:absolute; top:12px; right:14px; background:none; border:none; font-size:22px; color:#a0aec0; cursor:pointer; padding:0; line-height:1;">✕</button>
+            <h3 style="margin:0 0 16px;">⚙️ 期權整戶保證金設定</h3>
+            <div id="marginModalBody" style="display:flex; flex-direction:column; gap:12px;">
+                <!-- 內容會由 JS 動態生成 -->
+            </div>
+            <div style="display:flex; gap:8px; margin-top:16px;">
+                <button onclick="saveMarginModal()" style="flex:1; background:var(--primary); color:white; border:none; border-radius:6px; padding:10px; font-size:14px; font-weight:bold; cursor:pointer;">💾 儲存所有設定</button>
+            </div>
+        </div>
+    </div>
     <!-- 買入/賣出 modal -->
     <div id="tradeOverlay">
         <div id="tradeBox">
@@ -1681,7 +1693,7 @@ async function refreshAllPrices(isAuto = false) {
             }
         }
 
-        function updateTable() {
+function updateTable() {
             const tbody = document.querySelector('#stockTable tbody');
             tbody.innerHTML = '';
             
@@ -1691,7 +1703,17 @@ async function refreshAllPrices(isAuto = false) {
             const colBadge = document.getElementById('usColCurrencyBadge');
             if (colBadge) colBadge.textContent = usDisplayCurrency === 'USD' ? '🔵 US$' : 'NT$/US$';
 
-            portfolio.forEach(stock => {
+            // --- 新增：預先計算期權「整戶」總數據 ---
+            const futStocks = portfolio.filter(s => s.assetType === '期貨' || s.assetType === '選擇權');
+            const futBalance = parseFloat(document.getElementById('futAccountBalance').value) || 0;
+            const totalFutPL = futStocks.reduce((sum, s) => sum + (s.unrealizedPL_TWD || 0), 0);
+            const accountEquity = futBalance + totalFutPL; // 整戶二合一權益數
+           const totalInitMargin = parseFloat(localStorage.getItem('myPortfolioFutInitMargin')) || 0; // 讀取整戶原始保證金
+const totalMaintMargin = parseFloat(localStorage.getItem('myPortfolioFutMaintMargin')) || 0; // 讀取整戶維持保證金
+            
+            let skipRiskTdFor = 0; // 用於跨列合併 (rowspan) 的計數器
+
+            portfolio.forEach((stock, index) => {
                 const isUS = stock.market === '美股';
                 const marketClass = isUS ? 'badge-us' : 'badge-tw';
                 const assetBadge = stock.assetType === '選擇權' ? `<span class="badge badge-options">選擇權</span>` : (stock.assetType === '期貨' ? `<span class="badge badge-futures">期貨</span>` : '');
@@ -1742,51 +1764,75 @@ async function refreshAllPrices(isAuto = false) {
                     return `<span class="${plClass}">${plSign}${stock.unrealizedPL_TWD.toLocaleString(undefined, {maximumFractionDigits: 0})} <br>(${plSign}${stock.returnRate.toFixed(2)}%)</span>`;
                 })();
 
-                // 🌟 風控指標計算區塊
-                let riskDisplay = '-';
-                if (stock.status === '設質') {
-                    let rowLoanTWD = 0;
-                    if (stock.pledgeLoan > 0) {
-                        rowLoanTWD = stock.pledgeLoan;
+                // 🌟 風控指標計算區塊 (動態生成完整的 <td> 以支援 rowspan)
+                let riskDisplayTd = '';
+                const isDeriv = stock.assetType === '期貨' || stock.assetType === '選擇權';
+
+                if (isDeriv) {
+                    if (skipRiskTdFor === 0) {
+                        // 尋找「連續相鄰」的期權部位有幾筆，以便合併儲存格
+                        let contiguousCount = 0;
+                        for (let i = index; i < portfolio.length; i++) {
+                            if (portfolio[i].assetType === '期貨' || portfolio[i].assetType === '選擇權') {
+                                contiguousCount++;
+                            } else {
+                                break;
+                            }
+                        }
+                        skipRiskTdFor = contiguousCount - 1; // 接下來的 N-1 筆略過輸出，交給 rowspan 合併
+
+                        // 判斷整戶維持率燈號
+                        let ratioColor = accountEquity < totalMaintMargin ? 'color: #e53e3e;' : (accountEquity < totalInitMargin ? 'color: #d69e2e;' : 'color: #38a169;');
+
+                        riskDisplayTd = `
+                            <td rowspan="${contiguousCount}" style="vertical-align: middle; background-color: #fffaf0; border-left: 2px solid #fbd38d; border-right: 2px solid #fbd38d;">
+                                <div class="risk-box" style="background: transparent; border: none; padding: 0; box-shadow: none;">
+	<div style="font-weight:bold; color:#dd6b20; text-align:center; margin-bottom:6px; border-bottom:1px dashed #fbd38d; padding-bottom:4px; display:flex; justify-content:center; align-items:center; gap:6px;">
+    期權整戶風險
+    		<button onclick="openMarginModal()" style="background:#ebf8ff; border:1px solid #bee3f8; cursor:pointer; font-size:11px; color:#2b6cb0; padding:2px 6px; border-radius:4px; font-weight:bold;" title="快速設定各部位保證金">⚙️ 設定</button>
+</div>
+                                    <span style="color:#718096;">二合一權益:</span> <span class="risk-val" style="${ratioColor}">${accountEquity.toLocaleString(undefined, {maximumFractionDigits:0})}</span><br>
+                                    <span style="color:#718096;">總原始保證:</span> <span class="risk-val">${totalInitMargin.toLocaleString(undefined, {maximumFractionDigits:0})}</span><br>
+                                    <span style="color:#718096;">總維持保證:</span> <span class="risk-val">${totalMaintMargin.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+                                </div>
+                            </td>
+                        `;
+                    } else {
+                        // 已經被 rowspan 合併，不輸出此欄位
+                        skipRiskTdFor--;
+                        riskDisplayTd = '';
                     }
+                } else if (stock.status === '設質') {
+                    let rowLoanTWD = 0;
+                    if (stock.pledgeLoan > 0) rowLoanTWD = stock.pledgeLoan;
 
                     if (rowLoanTWD > 0) {
                         const maintRatio = (stock.totalValueTWD / rowLoanTWD) * 100;
-                        
-                        // 追繳價格 = 借款 * 130% / 股數。需轉換回原幣別顯示
                         let callPriceNative = (rowLoanTWD * 1.3) / (stock.shares * stock.multiplier);
                         if (stock.market === '美股') callPriceNative /= rate;
-
                         const lev = stock.totalValueTWD / rowLoanTWD;
                         let ratioColor = maintRatio < 130 ? 'color: #e53e3e;' : (maintRatio < 166 ? 'color: #d69e2e;' : 'color: #38a169;');
                         
-                        riskDisplay = `
-                            <div class="risk-box">
-                                <span style="color:#718096;">維持率:</span> <span class="risk-val" style="${ratioColor}">${maintRatio.toFixed(2)}%</span><br>
-                                <span style="color:#718096;">槓桿:</span> <span class="risk-val">${lev.toFixed(2)}x</span><br>
-                                <span style="color:#718096;">追繳價:</span> <span class="risk-val" style="color:#e53e3e;">${callPriceNative.toFixed(2)}</span>
-                            </div>
+                        riskDisplayTd = `
+                            <td>
+                                <div class="risk-box">
+                                    <span style="color:#718096;">維持率:</span> <span class="risk-val" style="${ratioColor}">${maintRatio.toFixed(2)}%</span><br>
+                                    <span style="color:#718096;">槓桿:</span> <span class="risk-val">${lev.toFixed(2)}x</span><br>
+                                    <span style="color:#718096;">追繳價:</span> <span class="risk-val" style="color:#e53e3e;">${callPriceNative.toFixed(2)}</span>
+                                </div>
+                            </td>
                         `;
                     } else {
-                         riskDisplay = `<div class="risk-box"><span style="color:#718096;">無借款分配</span></div>`;
+                         riskDisplayTd = `<td><div class="risk-box"><span style="color:#718096;">無借款分配</span></div></td>`;
                     }
-                } else if (stock.assetType === '期貨' && stock.margin > 0) {
-                    const equityNative = stock.equityValue || 0;
-                    const lev = stock.futuresLeverage || 0;
-                    const plColor = (stock.unrealizedPL_TWD || 0) >= 0 ? 'color:#e53e3e;' : 'color:#38a169;';
-
-                    riskDisplay = `
-                        <div class="risk-box">
-                            <span style="color:#718096;">槓桿:</span> <span class="risk-val">${lev.toFixed(2)}x</span><br>
-                            <span style="color:#718096;">帳戶權益:</span> <span class="risk-val">${equityNative.toLocaleString(undefined, {maximumFractionDigits:0})}</span><br>
-                            <span style="color:#718096;">未實現:</span> <span class="risk-val" style="${plColor}">${(stock.unrealizedPL_TWD||0)>=0?'+':''}${(stock.unrealizedPL_TWD||0).toLocaleString(undefined,{maximumFractionDigits:0})}</span>
-                        </div>
-                    `;
+                } else {
+                    riskDisplayTd = `<td></td>`;
                 }
 
                 const tr = document.createElement('tr');
                 tr.dataset.id = stock.id;
                 tr.draggable = true;
+                // 將原本寫死的 <td>${riskDisplay}</td> 替換為我們動態生成的 ${riskDisplayTd}
                 tr.innerHTML = `
                     <td class="drag-handle" title="拖曳排序">⠿</td>
                     <td>
@@ -1799,7 +1845,7 @@ async function refreshAllPrices(isAuto = false) {
                     <td>${priceDisplay}</td>
                     <td>${totalDisplay}</td>
                     <td>${plDisplay}</td>
-                    <td>${riskDisplay}</td>
+                    ${riskDisplayTd}
                     <td>
                         <button class="btn-action btn-edit" onclick="editStock(${stock.id})">編輯</button>
                         <button class="btn-action btn-delete" onclick="deleteStock(${stock.id})">刪除</button>
@@ -1815,7 +1861,6 @@ async function refreshAllPrices(isAuto = false) {
             });
             initDragSort();
         }
-
 
         // ===== 拖曳排序 =====
         function initDragSort() {
@@ -2277,7 +2322,57 @@ async function refreshAllPrices(isAuto = false) {
                 document.activeElement.blur();
             }
         }, { passive: true });
+// =====================================================
+        // 期權保證金快速設定視窗功能 (整戶模式)
+        // =====================================================
+        function openMarginModal() {
+            const balance = document.getElementById('futAccountBalance').value;
+            // 從瀏覽器快取讀取整戶保證金設定
+            const initM = localStorage.getItem('myPortfolioFutInitMargin') || 0;
+            const maintM = localStorage.getItem('myPortfolioFutMaintMargin') || 0;
+            
+            let html = `
+                <div>
+                    <label style="font-size:13px; font-weight:600; color:#4a5568;">期貨戶可用存款 (不含未實現)</label>
+                    <input type="number" id="modalFutBalance" value="${balance}" style="width:100%; padding:9px; border:1px solid #e2e8f0; border-radius:6px; margin-top:4px; box-sizing:border-box;">
+                </div>
+                <div style="border-top:1px dashed #cbd5e0; margin-top:16px; padding-top:16px;">
+                    <label style="font-size:13px; font-weight:600; color:#4a5568; display:block; margin-bottom:12px;">📊 整戶保證金設定</label>
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label style="font-size:11px; color:#718096;">整戶原始保證金</label>
+                            <input type="number" id="modalTotalInit" value="${initM}" style="width:100%; padding:9px; border:1px solid #cbd5e0; border-radius:6px; font-size:13px; box-sizing:border-box;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:11px; color:#718096;">整戶維持保證金</label>
+                            <input type="number" id="modalTotalMaint" value="${maintM}" style="width:100%; padding:9px; border:1px solid #cbd5e0; border-radius:6px; font-size:13px; box-sizing:border-box;">
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('marginModalBody').innerHTML = html;
+            document.getElementById('marginOverlay').style.display = 'flex';
+        }
 
+        function saveMarginModal() {
+            // 儲存期貨戶存款
+            const balance = document.getElementById('modalFutBalance').value;
+            document.getElementById('futAccountBalance').value = balance;
+            localStorage.setItem('myPortfolioFutAccountBalance', balance);
+            
+            // 儲存整戶保證金設定
+            const totalInit = document.getElementById('modalTotalInit').value;
+            const totalMaint = document.getElementById('modalTotalMaint').value;
+            localStorage.setItem('myPortfolioFutInitMargin', totalInit);
+            localStorage.setItem('myPortfolioFutMaintMargin', totalMaint);
+            
+            updateUI(); // 觸發畫面更新
+            closeMarginModal();
+        }
+     function closeMarginModal() {
+            document.getElementById('marginOverlay').style.display = 'none';
+        }
         window.onload = initApp;
     </script>
 
