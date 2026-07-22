@@ -1955,8 +1955,14 @@ const totalMaintMargin = parseFloat(localStorage.getItem('myPortfolioFutMaintMar
 
         const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-        function updateChart() {
-            if (portfolio.length === 0) {
+function updateChart() {
+            // 讀取期貨餘額與計算期貨總權益
+            const futBalance = parseFloat(document.getElementById('futAccountBalance').value) || 0;
+            const futStocks = portfolio.filter(s => s.assetType === '期貨' || s.assetType === '選擇權');
+            const totalFutPL = futStocks.reduce((sum, s) => sum + (s.unrealizedPL_TWD || 0), 0);
+            const futEquity = futBalance + totalFutPL;
+
+            if (portfolio.length === 0 && futEquity <= 0) {
                 Plotly.purge('pieChartTotal');
                 Plotly.purge('pieChartTW');
                 Plotly.purge('pieChartUS');
@@ -1964,17 +1970,33 @@ const totalMaintMargin = parseFloat(localStorage.getItem('myPortfolioFutMaintMar
                 return;
             }
 
+            // 將資料重新分類：現股獨立顯示，期貨合併為單一區塊「期貨戶權益」
+            let chartDataTotal = [];
+            let chartDataTW = [];
+            let chartDataUS = [];
+
+            // 把現股分類塞進去
+            portfolio.forEach(s => {
+                if (s.assetType === '現股') {
+                    const item = { name: s.name + (s.status === '設質' ? ' (設質)' : ''), value: Math.max(0, s.totalValueTWD) };
+                    chartDataTotal.push(item);
+                    if (s.market === '台股') chartDataTW.push(item);
+                    if (s.market === '美股') chartDataUS.push(item);
+                }
+            });
+
+            // 如果期貨戶有錢(權益大於0)，把它當作一個獨立的「資產區塊」加進去
+            if (futEquity > 0) {
+                const futItem = { name: '期貨戶權益 (含未實現)', value: futEquity };
+                chartDataTotal.push(futItem);
+                chartDataTW.push(futItem); // 期貨保證金主要為台幣資產，歸入台股
+            }
+
             const getChartData = (dataArray) => {
-                const labels = dataArray.map(s => {
-                    let label = s.name;
-                    if (s.assetType === '選擇權') label += ' (選擇權)';
-                    if (s.assetType === '期貨') label += ' (期貨)';
-                    if (s.status === '設質') label += ' (設質)';
-                    return label;
-                });
-                const values = dataArray.map(s => Math.max(0, s.totalValueTWD));
-                const totalValueSum = dataArray.reduce((a, s) => a + s.totalValueTWD, 0);
-                const customTexts = dataArray.map(s => `NT$ ${s.totalValueTWD.toLocaleString(undefined, {maximumFractionDigits: 0})}`);
+                const labels = dataArray.map(s => s.name);
+                const values = dataArray.map(s => s.value);
+                const totalValueSum = dataArray.reduce((a, s) => a + s.value, 0);
+                const customTexts = dataArray.map(s => `NT$ ${s.value.toLocaleString(undefined, {maximumFractionDigits: 0})}`);
                 return { labels, values, customTexts, totalValueSum };
             };
 
@@ -1990,40 +2012,45 @@ const totalMaintMargin = parseFloat(localStorage.getItem('myPortfolioFutMaintMar
                 position: 'middle center'
             });
 
-            const totalData = getChartData(portfolio);
-            Plotly.newPlot('pieChartTotal', [{
-                values: totalData.values, labels: totalData.labels, text: totalData.customTexts,
-                type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'horizontal',
-                hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
-                hole: 0.55, marker: { line: { color: '#ffffff', width: 2 } },
-                title: centerTitle(totalData.totalValueSum, true)
-            }], getLayout('全部資產總和分佈'), {responsive: true, displayModeBar: false});
+            // 繪製：總和圓餅圖
+            if (chartDataTotal.reduce((a, s) => a + s.value, 0) > 0) {
+                const totalData = getChartData(chartDataTotal);
+                Plotly.newPlot('pieChartTotal', [{
+                    values: totalData.values, labels: totalData.labels, text: totalData.customTexts,
+                    type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'horizontal',
+                    hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
+                    hole: 0.55, marker: { line: { color: '#ffffff', width: 2 } },
+                    title: centerTitle(totalData.totalValueSum, true)
+                }], getLayout('全部資產總和分佈'), {responsive: true, displayModeBar: false});
+            } else { Plotly.purge('pieChartTotal'); }
 
-            const twPortfolio = portfolio.filter(s => s.market === '台股');
-            if (twPortfolio.length > 0) {
-                const twData = getChartData(twPortfolio);
+            // 繪製：台股圓餅圖
+            if (chartDataTW.reduce((a, s) => a + s.value, 0) > 0) {
+                const twData = getChartData(chartDataTW);
                 Plotly.newPlot('pieChartTW', [{
                     values: twData.values, labels: twData.labels, text: twData.customTexts,
                     type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'horizontal',
                     hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
                     hole: 0.55, marker: { line: { color: '#ffffff', width: 1 } },
                     title: centerTitle(twData.totalValueSum, false)
-                }], getLayout('純台股部位'), {responsive: true, displayModeBar: false});
+                }], getLayout('台股資產分佈'), {responsive: true, displayModeBar: false});
             } else { Plotly.purge('pieChartTW'); }
 
-            const usPortfolio = portfolio.filter(s => s.market === '美股');
-            if (usPortfolio.length > 0) {
-                const usData = getChartData(usPortfolio);
+            // 繪製：美股圓餅圖
+            if (chartDataUS.reduce((a, s) => a + s.value, 0) > 0) {
+                const usData = getChartData(chartDataUS);
                 Plotly.newPlot('pieChartUS', [{
                     values: usData.values, labels: usData.labels, text: usData.customTexts,
                     type: 'pie', textinfo: 'label+percent', textposition: 'inside', insidetextorientation: 'horizontal',
                     hovertemplate: '<b>%{label}</b><br>%{text}<br>佔比: %{percent}<extra></extra>',
                     hole: 0.55, marker: { line: { color: '#ffffff', width: 1 } },
                     title: centerTitle(usData.totalValueSum, false)
-                }], getLayout('純美股部位'), {responsive: true, displayModeBar: false});
+                }], getLayout('美股資產分佈'), {responsive: true, displayModeBar: false});
             } else { Plotly.purge('pieChartUS'); }
 
-            const histData = recordDailyEquity(totalData.totalValueSum);
+            // 繪製：歷史淨值增長曲線 (取總資產)
+            const totalValueSum = chartDataTotal.reduce((a, s) => a + s.value, 0);
+            const histData = recordDailyEquity(totalValueSum);
             const xDates = histData.map(h => h.date);
             const yValues = histData.map(h => h.value);
 
