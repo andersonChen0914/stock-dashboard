@@ -91,6 +91,9 @@
         .card-us { background: linear-gradient(135deg, #805ad5, #553c9a); }
         .card-ratio { background: linear-gradient(135deg, #718096, #4a5568); }
         .card-realized { background: linear-gradient(135deg, #0d9488, #0f766e); }
+        .card-futures { background: linear-gradient(135deg, #b45309, #92400e); }
+        .card-futures.futures-warn { background: linear-gradient(135deg, #d69e2e, #b7791f); }
+        .card-futures.futures-danger { background: linear-gradient(135deg, #e53e3e, #c53030); }
         .ratio-safe { background: linear-gradient(135deg, #38a169, #276749); }
         .ratio-warn { background: linear-gradient(135deg, #d69e2e, #b7791f); }
         .ratio-danger { background: linear-gradient(135deg, #e53e3e, #9b2c2c); }
@@ -290,6 +293,8 @@
                     <input type="number" id="feeDiscount" value="0.6" step="0.01" min="0" max="1" title="例：6折填0.6、電子單常見0.6，無折扣填1" onchange="recalculateCurrencies()" style="width:60px;">
                     <span style="margin-left:12px;">期貨每口手續費: </span>
                     <input type="number" id="futFeePerLot" value="25" step="1" min="0" title="券商每口收費，期貨與選擇權適用" onchange="recalculateCurrencies()" style="width:60px;">
+                    <span style="margin-left:12px;">期貨戶存款: </span>
+                    <input type="number" id="futAccountBalance" value="0" step="1000" min="0" title="期貨保證金帳戶目前存款總額（不含未實現損益）" onchange="recalculateCurrencies()" style="width:90px;">
                 </div>
             </h2>
             
@@ -376,17 +381,7 @@
                 <div class="form-group">
                     <label>投入保證金 / 權益本金</label>
                     <input type="number" id="marginInput" placeholder="例如 59940" min="0" step="any">
-                    <div class="hint">作為期貨權益數的基準</div>
-                </div>
-                <div class="form-group">
-                    <label>原始保證金</label>
-                    <input type="number" id="initialMarginInput" placeholder="例如 59940" min="0" step="any">
-                    <div class="hint">計算保證金使用率</div>
-                </div>
-                <div class="form-group">
-                    <label>維持保證金</label>
-                    <input type="number" id="maintenanceMarginInput" placeholder="例如 45955" min="0" step="any">
-                    <div class="hint">計算追繳警戒價</div>
+                    <div class="hint">作為期貨權益數的基準（風控改採整戶保證金，見儀表板）</div>
                 </div>
             </div>
 
@@ -483,6 +478,10 @@
                     <div class="summary-card-title">已實現損益 <span style="font-size:10px;opacity:0.75;">（今年）▸</span></div>
                     <div class="summary-card-value" id="dashRealized">0</div>
                 </div>
+                <div class="summary-card card-futures" id="dashFuturesCard" onclick="toggleFuturesOverview()" title="點擊查看期貨/選擇權明細" style="cursor:pointer;">
+                    <div class="summary-card-title">期貨戶權益 / 槓桿 <span style="font-size:10px;opacity:0.75;">▸</span></div>
+                    <div class="summary-card-value" id="dashFuturesEquity">無部位</div>
+                </div>
             </div>
 
             <div id="pieChartTotal" style="height: 350px;"></div>
@@ -490,6 +489,52 @@
             <div class="sub-charts-container">
                 <div id="pieChartTW" class="sub-chart"></div>
                 <div id="pieChartUS" class="sub-chart"></div>
+            </div>
+
+            <!-- ===== 期貨/選擇權風險總覽（預設收合，點卡片展開）===== -->
+            <div id="futuresOverviewSection" style="display:none;margin-top:30px;border-top:1px dashed #e2e8f0;padding-top:20px;">
+                <h2 style="display:flex;align-items:center;gap:8px;">
+                    📊 期貨/選擇權風險總覽
+                    <button onclick="toggleFuturesOverview()" style="margin-left:auto;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer;">收合 ▴</button>
+                </h2>
+
+                <div class="stmt-summary">
+                    <div class="stmt-sum-card">
+                        <div class="stmt-sum-title">期貨戶存款</div>
+                        <div class="stmt-sum-value" id="futOvBalance">0</div>
+                    </div>
+                    <div class="stmt-sum-card">
+                        <div class="stmt-sum-title">全戶未實現損益</div>
+                        <div class="stmt-sum-value" id="futOvPL">0</div>
+                    </div>
+                    <div class="stmt-sum-card">
+                        <div class="stmt-sum-title">戶頭權益</div>
+                        <div class="stmt-sum-value" id="futOvEquity">0</div>
+                    </div>
+                    <div class="stmt-sum-card">
+                        <div class="stmt-sum-title">全戶槓桿</div>
+                        <div class="stmt-sum-value" id="futOvLeverage">0x</div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="futuresOverviewTable">
+                        <thead>
+                            <tr>
+                                <th>標的</th>
+                                <th>類別</th>
+                                <th>方向</th>
+                                <th>口數</th>
+                                <th>成本 / 現價</th>
+                                <th>名目曝險(TWD)</th>
+                                <th>未實現損益(TWD)</th>
+                                <th>佔全戶曝險比重</th>
+                            </tr>
+                        </thead>
+                        <tbody id="futuresOverviewBody"></tbody>
+                    </table>
+                </div>
+                <p class="hint" id="futuresOverviewEmptyHint" style="text-align:center;padding:16px;">目前沒有期貨/選擇權部位</p>
             </div>
 
             <div style="margin-top: 30px; border-top: 1px dashed #e2e8f0; padding-top: 20px;">
@@ -676,15 +721,6 @@ async function fetchAllTWPrices(twStocks) {
                 s.notionalValue = s.price * s.shares * s.multiplier;
                 s.equityValue = s.totalValue;
                 s.futuresLeverage = s.equityValue > 0 ? Math.abs(s.notionalValue / s.equityValue) : 0;
-                s.marginUsageRate = s.initialMargin > 0 && s.equityValue > 0 ? (s.initialMargin / s.equityValue) * 100 : 0;
-                s.brokerRiskIndicator = s.initialMargin > 0 ? (s.equityValue / s.initialMargin) * 100 : 0;
-                const contractsMultiplier = s.shares * s.multiplier;
-                const maintenanceBuffer = s.equityValue - s.maintenanceMargin;
-                const initialBuffer = s.equityValue - s.initialMargin;
-                const maintenancePoints = contractsMultiplier > 0 ? maintenanceBuffer / contractsMultiplier : 0;
-                const initialPoints = contractsMultiplier > 0 ? initialBuffer / contractsMultiplier : 0;
-                s.maintenanceCallPrice = s.futuresSide === 'short' ? s.price + maintenancePoints : s.price - maintenancePoints;
-                s.initialMarginPrice = s.futuresSide === 'short' ? s.price + initialPoints : s.price - initialPoints;
             } else {
                 s.totalCost = s.shares * s.costPrice * s.multiplier;
                 s.totalValue = s.shares * s.price * s.multiplier;
@@ -722,6 +758,9 @@ async function fetchAllTWPrices(twStocks) {
 
             const savedFutFee = localStorage.getItem('myPortfolioFutFeePerLot');
             if(savedFutFee) document.getElementById('futFeePerLot').value = savedFutFee;
+
+            const savedFutBalance = localStorage.getItem('myPortfolioFutAccountBalance');
+            if(savedFutBalance) document.getElementById('futAccountBalance').value = savedFutBalance;
 
             const rate = parseFloat(rateInput.value) || 32.5;
 
@@ -762,6 +801,7 @@ async function fetchAllTWPrices(twStocks) {
             localStorage.setItem('myPortfolioExchangeRate', document.getElementById('exchangeRate').value);
             localStorage.setItem('myPortfolioFeeDiscount', document.getElementById('feeDiscount').value);
             localStorage.setItem('myPortfolioFutFeePerLot', document.getElementById('futFeePerLot').value);
+            localStorage.setItem('myPortfolioFutAccountBalance', document.getElementById('futAccountBalance').value);
             localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value.trim());
         }
 
@@ -1062,8 +1102,6 @@ async function refreshAllPrices(isAuto = false) {
             const multiplier = parseFloat(document.getElementById('multiplier').value) || 1;
             const margin = parseFloat(document.getElementById('marginInput').value) || 0;
             const futuresSide = document.getElementById('futuresSide').value;
-            const initialMargin = parseFloat(document.getElementById('initialMarginInput').value) || 0;
-            const maintenanceMargin = parseFloat(document.getElementById('maintenanceMarginInput').value) || 0;
             const pledgeLoan = status === '設質' ? (parseFloat(document.getElementById('pledgeLoanInput').value) || 0) : 0;
             const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
 
@@ -1075,7 +1113,7 @@ async function refreshAllPrices(isAuto = false) {
             const newStock = { 
                 id: editingId !== null ? editingId : Date.now(),
                 name: displayName, apiTicker: apiTicker, assetType, market, status, shares, costPrice, price, multiplier, margin,
-                futuresSide, initialMargin, maintenanceMargin, pledgeLoan
+                futuresSide, pledgeLoan
             };
 
             calcStockData(newStock, rate);
@@ -1099,8 +1137,6 @@ async function refreshAllPrices(isAuto = false) {
             document.getElementById('costPrice').value = '';
             document.getElementById('price').value = '';
             document.getElementById('marginInput').value = '';
-            document.getElementById('initialMarginInput').value = '';
-            document.getElementById('maintenanceMarginInput').value = '';
             document.getElementById('futuresSide').value = 'long';
             document.getElementById('pledgeLoanInput').value = '';
             document.getElementById('status').value = '一般';
@@ -1127,8 +1163,6 @@ async function refreshAllPrices(isAuto = false) {
             document.getElementById('multiplier').value = stock.multiplier;
             document.getElementById('marginInput').value = stock.margin || '';
             document.getElementById('futuresSide').value = stock.futuresSide || 'long';
-            document.getElementById('initialMarginInput').value = stock.initialMargin || '';
-            document.getElementById('maintenanceMarginInput').value = stock.maintenanceMargin || '';
             document.getElementById('pledgeLoanInput').value = stock.pledgeLoan || '';
             
             editingId = id;
@@ -1303,6 +1337,68 @@ async function refreshAllPrices(isAuto = false) {
                 renderRealized();
                 sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
+        }
+
+        function toggleFuturesOverview() {
+            const sec = document.getElementById('futuresOverviewSection');
+            const isHidden = sec.style.display === 'none' || !sec.style.display;
+            sec.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) {
+                renderFuturesOverview();
+                sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // 集中列出所有期貨/選擇權部位，並算整戶槓桿/權益
+        function renderFuturesOverview() {
+            const rate = parseFloat(document.getElementById('exchangeRate').value) || 32.5;
+            const accountBalance = parseFloat(document.getElementById('futAccountBalance').value) || 0;
+            const futStocks = portfolio.filter(s => s.assetType === '期貨' || s.assetType === '選擇權');
+
+            const totalUnrealizedPL = futStocks.reduce((sum, s) => sum + (s.unrealizedPL_TWD || 0), 0);
+            const totalNotionalTWD = futStocks.reduce((sum, s) => {
+                const notional = s.notionalValue || (s.price * s.shares * s.multiplier) || 0;
+                return sum + (s.market === '美股' ? notional * rate : notional);
+            }, 0);
+            const accountEquity = accountBalance + totalUnrealizedPL;
+            const leverage = accountEquity > 0 ? totalNotionalTWD / accountEquity : 0;
+
+            document.getElementById('futOvBalance').innerText = accountBalance.toLocaleString(undefined, {maximumFractionDigits:0});
+            const plEl = document.getElementById('futOvPL');
+            plEl.innerText = (totalUnrealizedPL >= 0 ? '+' : '') + totalUnrealizedPL.toLocaleString(undefined, {maximumFractionDigits:0});
+            plEl.className = 'stmt-sum-value ' + (totalUnrealizedPL >= 0 ? 'text-profit' : 'text-loss');
+            document.getElementById('futOvEquity').innerText = accountEquity.toLocaleString(undefined, {maximumFractionDigits:0});
+            document.getElementById('futOvLeverage').innerText = leverage.toFixed(2) + 'x';
+
+            const body = document.getElementById('futuresOverviewBody');
+            const hint = document.getElementById('futuresOverviewEmptyHint');
+            body.innerHTML = '';
+
+            futStocks.forEach(s => {
+                const notional = s.notionalValue || (s.price * s.shares * s.multiplier) || 0;
+                const notionalTWD = s.market === '美股' ? notional * rate : notional;
+                const weight = totalNotionalTWD > 0 ? (notionalTWD / totalNotionalTWD) * 100 : 0;
+                const pl = s.unrealizedPL_TWD || 0;
+                const plClass = pl >= 0 ? 'text-profit' : 'text-loss';
+                const plSign = pl >= 0 ? '+' : '';
+                const sideText = s.futuresSide === 'short' ? '空單' : '多單';
+                const sideColor = s.futuresSide === 'short' ? '#e53e3e' : '#38a169';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${s.name}</td>
+                    <td>${s.assetType}</td>
+                    <td><span style="color:${sideColor};font-weight:600;">${sideText}</span></td>
+                    <td>${s.shares}</td>
+                    <td>${s.costPrice} / ${s.price}</td>
+                    <td>${notionalTWD.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+                    <td class="${plClass}">${plSign}${pl.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+                    <td>${weight.toFixed(1)}%</td>
+                `;
+                body.appendChild(tr);
+            });
+
+            hint.style.display = futStocks.length === 0 ? 'block' : 'none';
         }
 
         function updateRealizedCard() {
@@ -1544,6 +1640,36 @@ async function refreshAllPrices(isAuto = false) {
                 ratioText.innerText = '無借款';
                 ratioCard.className = 'summary-card card-ratio';
             }
+
+            // ===== 整戶期貨保證金風控 =====
+            const futStocks = portfolio.filter(s => s.assetType === '期貨' || s.assetType === '選擇權');
+            const futCard = document.getElementById('dashFuturesCard');
+            const futText = document.getElementById('dashFuturesEquity');
+            if (futStocks.length > 0) {
+                const accountBalance = parseFloat(document.getElementById('futAccountBalance').value) || 0;
+                // 全戶未實現損益加總（換算台幣）
+                const totalUnrealizedPL = futStocks.reduce((sum, s) => sum + (s.unrealizedPL_TWD || 0), 0);
+                // 全戶名目曝險加總（換算台幣，用於槓桿估算）
+                const totalNotionalTWD = futStocks.reduce((sum, s) => {
+                    const notional = s.notionalValue || (s.price * s.shares * s.multiplier) || 0;
+                    return sum + (s.market === '美股' ? notional * rate : notional);
+                }, 0);
+                const accountEquity = accountBalance + totalUnrealizedPL;
+                const leverage = accountEquity > 0 ? totalNotionalTWD / accountEquity : 0;
+
+                const plSign = totalUnrealizedPL >= 0 ? '+' : '';
+                futText.innerHTML = `${accountEquity.toLocaleString(undefined,{maximumFractionDigits:0})} <span style="font-size:0.75em;opacity:0.85;">(${plSign}${totalUnrealizedPL.toLocaleString(undefined,{maximumFractionDigits:0})})</span><br><span style="font-size:0.8em;">槓桿 ${leverage.toFixed(2)}x</span>`;
+
+                futCard.className = 'summary-card card-futures';
+                if (accountBalance > 0 && accountEquity < accountBalance * 0.5) {
+                    futCard.classList.add('futures-danger');
+                } else if (accountBalance > 0 && accountEquity < accountBalance * 0.75) {
+                    futCard.classList.add('futures-warn');
+                }
+            } else {
+                futText.innerText = '無部位';
+                futCard.className = 'summary-card card-futures';
+            }
         }
 
         function updateTable() {
@@ -1575,9 +1701,6 @@ async function refreshAllPrices(isAuto = false) {
                 if (stock.assetType === '期貨') {
                     const sideText = stock.futuresSide === 'short' ? '賣出' : '買進';
                     priceDisplay += `<br><span class="currency-subtext">${sideText} / 本金: ${currencySym} ${(stock.margin || 0).toLocaleString()}</span>`;
-                    if (stock.initialMargin > 0 || stock.maintenanceMargin > 0) {
-                        priceDisplay += `<br><span class="currency-subtext">原始/維持: ${(stock.initialMargin || 0).toLocaleString()} / ${(stock.maintenanceMargin || 0).toLocaleString()}</span>`;
-                    }
                 }
 
                 let nameDisplay = `<strong>${stock.name}</strong>`;
@@ -1641,18 +1764,13 @@ async function refreshAllPrices(isAuto = false) {
                 } else if (stock.assetType === '期貨' && stock.margin > 0) {
                     const equityNative = stock.equityValue || 0;
                     const lev = stock.futuresLeverage || 0;
-                    const usage = stock.marginUsageRate || 0;
-                    const callPrice = stock.maintenanceCallPrice || 0;
-                    const riskIndicator = stock.brokerRiskIndicator || 0;
-                    const usageColor = usage >= 90 ? 'color:#e53e3e;' : (usage >= 70 ? 'color:#d69e2e;' : 'color:#38a169;');
-                    const equityColor = equityNative < (stock.maintenanceMargin || 0) ? 'color:#e53e3e;' : (equityNative < (stock.initialMargin || 0) ? 'color:#d69e2e;' : 'color:#38a169;');
+                    const plColor = (stock.unrealizedPL_TWD || 0) >= 0 ? 'color:#e53e3e;' : 'color:#38a169;';
 
                     riskDisplay = `
                         <div class="risk-box">
                             <span style="color:#718096;">槓桿:</span> <span class="risk-val">${lev.toFixed(2)}x</span><br>
-                            <span style="color:#718096;">保證金使用:</span> <span class="risk-val" style="${usageColor}">${usage.toFixed(2)}%</span><br>
-                            <span style="color:#718096;">追繳價:</span> <span class="risk-val" style="color:#e53e3e;">${callPrice.toFixed(2)}</span><br>
-                            <span style="color:#718096;">權益/風險:</span> <span class="risk-val" style="${equityColor}">${equityNative.toLocaleString(undefined, {maximumFractionDigits:0})} / ${riskIndicator.toFixed(2)}%</span>
+                            <span style="color:#718096;">帳戶權益:</span> <span class="risk-val">${equityNative.toLocaleString(undefined, {maximumFractionDigits:0})}</span><br>
+                            <span style="color:#718096;">未實現:</span> <span class="risk-val" style="${plColor}">${(stock.unrealizedPL_TWD||0)>=0?'+':''}${(stock.unrealizedPL_TWD||0).toLocaleString(undefined,{maximumFractionDigits:0})}</span>
                         </div>
                     `;
                 }
