@@ -2061,7 +2061,7 @@ function updateChart() {
             const endDateStr = endD.toISOString().split('T')[0];
             const startDateStr = startD.toISOString().split('T')[0];
 
-            Plotly.newPlot('lineChartEquity', [{
+Plotly.newPlot('lineChartEquity', [{
                 x: xDates,
                 y: yValues,
                 type: 'scatter',
@@ -2077,26 +2077,26 @@ function updateChart() {
                     title: '', 
                     tickangle: -45, 
                     gridcolor: '#edf2f7', 
-                    fixedrange: false, 
-                    range: [startDateStr, endDateStr] // 🌟 預設顯示範圍
+                    fixedrange: false, // X 軸保持不鎖定，允許左右拖曳
+                    range: [startDateStr, endDateStr] 
                 }, 
                 yaxis: { 
                     title: '總權益 (NT$)', 
                     gridcolor: '#edf2f7', 
                     tickformat: ',', 
-                    fixedrange: false 
+                    fixedrange: true,     // 🌟 鎖定 Y 軸，禁止上下拖曳
+                    rangemode: 'tozero'   // 🌟 強制 Y 軸永遠從 0 開始
                 }, 
-                dragmode: 'pan', // 🌟 開啟平移模式
+                dragmode: 'pan', 
                 plot_bgcolor: 'transparent',
                 paper_bgcolor: 'transparent'
             }, {
                 responsive: true, 
-                displayModeBar: true, // 🌟 顯示工具列
+                displayModeBar: true, 
                 modeBarButtonsToRemove: ['lasso2d', 'select2d'], 
                 displaylogo: false
-            }); 
-        }
-
+            });
+}
         // =====================================================
         // AI 截圖辨識匯入功能
         // =====================================================
