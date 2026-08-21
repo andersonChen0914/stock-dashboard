@@ -846,7 +846,7 @@ async function fetchAllTWPrices(twStocks) {
             } catch (e) { hist = null; }
             if (!hist || hist.length === 0) {
                 hist = [];
-                for(let i=7; i>=1; i--) {
+                for(let i=14; i>=1; i--) {
                     const d = new Date();
                     d.setDate(d.getDate() - i);
                     hist.push({ date: d.toISOString().split('T')[0], value: totalEquity * (0.92 + Math.random()*0.06) });
@@ -2054,6 +2054,13 @@ function updateChart() {
             const xDates = histData.map(h => h.date);
             const yValues = histData.map(h => h.value);
 
+            // 🌟 計算預設顯示範圍：今天到兩週前
+            const endD = new Date();
+            const startD = new Date();
+            startD.setDate(endD.getDate() - 14);
+            const endDateStr = endD.toISOString().split('T')[0];
+            const startDateStr = startD.toISOString().split('T')[0];
+
             Plotly.newPlot('lineChartEquity', [{
                 x: xDates,
                 y: yValues,
@@ -2066,12 +2073,28 @@ function updateChart() {
                 hovertemplate: '<b>%{x}</b><br>淨值: NT$ %{y:,.0f}<extra></extra>'
             }], {
                 margin: { t: 10, b: 40, l: 80, r: 20 }, 
-                xaxis: { title: '', tickangle: -45, gridcolor: '#edf2f7', fixedrange: true }, 
-                yaxis: { title: '總權益 (NT$)', gridcolor: '#edf2f7', tickformat: ',', fixedrange: true }, 
-                dragmode: false, 
+                xaxis: { 
+                    title: '', 
+                    tickangle: -45, 
+                    gridcolor: '#edf2f7', 
+                    fixedrange: false, 
+                    range: [startDateStr, endDateStr] // 🌟 預設顯示範圍
+                }, 
+                yaxis: { 
+                    title: '總權益 (NT$)', 
+                    gridcolor: '#edf2f7', 
+                    tickformat: ',', 
+                    fixedrange: false 
+                }, 
+                dragmode: 'pan', // 🌟 開啟平移模式
                 plot_bgcolor: 'transparent',
                 paper_bgcolor: 'transparent'
-            }, {responsive: true, displayModeBar: false}); 
+            }, {
+                responsive: true, 
+                displayModeBar: true, // 🌟 顯示工具列
+                modeBarButtonsToRemove: ['lasso2d', 'select2d'], 
+                displaylogo: false
+            }); 
         }
 
         // =====================================================
